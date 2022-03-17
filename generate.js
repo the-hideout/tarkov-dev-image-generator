@@ -397,7 +397,7 @@ const hashItems = async (options) => {
     let foundBaseImages = options.foundBaseImages;
     if (!foundBaseImages) {
         try {
-            foundBaseImages = JSON.parse((await got('https://tarkov-data-manager.herokuapp.com/data/existing-bases.json')).body);
+            foundBaseImages = JSON.parse((await got('https:///manager.thehideout.io/data/existing-bases.json')).body);
         } catch (error) {
             console.log(`Error downloading found base image list: ${error}`);
         }
