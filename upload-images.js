@@ -4,7 +4,7 @@ const path = require('path');
 const got = require('got');
 const FormData = require('form-data');
 
-const ENDPOINT = 'https:///manager.thehideout.io/suggest-image';
+const ENDPOINT = 'https:///manager.tarkov.dev/suggest-image';
 
 const maxSimultaneousUploads = 1;
 
