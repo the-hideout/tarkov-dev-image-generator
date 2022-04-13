@@ -397,7 +397,7 @@ const hashItems = async (options) => {
     let foundBaseImages = options.foundBaseImages;
     if (!foundBaseImages) {
         try {
-            foundBaseImages = JSON.parse((await got('https:///manager.thehideout.io/data/existing-bases.json')).body);
+            foundBaseImages = JSON.parse((await got('https:///manager.tarkov.dev/data/existing-bases.json')).body);
         } catch (error) {
             console.log(`Error downloading found base image list: ${error}`);
         }
@@ -408,7 +408,7 @@ const hashItems = async (options) => {
         if (options.targetItemId) {
             queryType = `item( id: "${options.targetItemId}")`;
         }
-        const response = await got.post('https://tarkov-tools.com/graphql', {
+        const response = await got.post('https://api.tarkov.dev/graphql', {
             body: JSON.stringify({query: `{
                 ${queryType}{
                   id
