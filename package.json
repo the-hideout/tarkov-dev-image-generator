@@ -1,10 +1,10 @@
 {
-  "name": "tarkov-image-generator",
+  "name": "tarkov-dev-image-generator",
   "version": "1.2.41",
   "description": "",
   "main": "generate.js",
   "bin": {
-    "tarkov-image-generator": "index.js"
+    "tarkov-dev-image-generator": "index.js"
   },
   "scripts": {
     "start": "node index.js",
@@ -19,5 +19,9 @@
     "got": "^11.8.2",
     "jimp": "^0.16.1",
     "hashcode": "^1.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/the-hideout/tarkov-dev-image-generator.git"
   }
 }
