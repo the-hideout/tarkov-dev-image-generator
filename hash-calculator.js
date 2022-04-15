@@ -142,20 +142,22 @@ const getContainerHash = (hash, item) => {
     //console.log(item._name);
     //console.log(buildPreset(preset));
     slots = buildPreset(preset);
+    //console.log(slots);
     for (let i = 0; i < slots.length; i++) {
         slot = slots[i];
         hash ^= getStringHash(slot.name);
         let cartridges = false;
         if (slot.name == 'cartridges') {
             continue;
-        } else if (slot.name == 'mod_magazine' && slot.item) {
+        }
+        if (slot.name == 'mod_magazine' && slot.item) {
             if (i+1 < slots.length && slots[i+1].name == 'cartridges') {
                 cartridges = slots[i+1].item;
             }
         }
-        if (slot.item) {
+        //if (slot.item) {
             hash ^= getSingleItemHash(slot.item, cartridges);
-        }
+        //}
     }
     return hash;
 }

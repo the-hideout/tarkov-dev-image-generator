@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+const dotenv = require("dotenv")
+
+dotenv.config();
 
 const { initializeImageGenerator, generateImages, startWatchingCache } = require('./generate');
 
@@ -30,7 +33,7 @@ const testItems = {
     },
     'makarov': {
         id: '5448bd6b4bdc2dfc2f8b4569',
-        hash: 430064332,
+        hash: 1301327260,
         type: 'weapon'
     },
     'aks74u': {
@@ -82,6 +85,16 @@ const testItems = {
         id: '5c110624d174af029e69734c',
         hash: -1236854413,
         type: 'ThermalVision'
+    },
+    'rhino357cylinder': {
+        id: '619f54a1d25cbd424731fb99',
+        hash: 441114739,
+        type: 'CylinderMagazine'
+    },
+    'rhino9x19cylinder': {
+        id: '624c3074dbbd335e8e6becf3',
+        hash: 451194640,
+        type: 'CylinderMagazine'
     }
 };
 
@@ -108,7 +121,7 @@ const testItems = {
         forceImage = process.argv[3];
     }
     try {
-        const testItemKey = 't7';
+        const testItemKey = 'rhino357cylinder';
         const testItem = testItems[testItemKey];
         console.log(`Expected and calculated hash for ${testItemKey}:`)
         console.log(testItem.hash);

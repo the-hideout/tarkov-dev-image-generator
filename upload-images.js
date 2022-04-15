@@ -3,6 +3,9 @@ const path = require('path');
 
 const got = require('got');
 const FormData = require('form-data');
+const dotenv = require("dotenv")
+
+dotenv.config();
 
 const ENDPOINT = 'https:///manager.tarkov.dev/suggest-image';
 

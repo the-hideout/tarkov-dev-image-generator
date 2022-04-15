@@ -10,6 +10,7 @@ const Jimp = require('jimp');
 
 const uploadImages = require('./upload-images');
 const hashCalc = require('./hash-calculator');
+const getJson = require('./get-json');
 
 let bsgData = false;
 let presets = false;
@@ -317,60 +318,15 @@ const cacheIsLoaded = () => {
 };
 
 const loadBsgData = async () => {
-    try {
-        bsgData = JSON.parse(fs.readFileSync('./items.json', 'utf8'));
-        const stats = fs.statSync('./items.json');
-        if (Date.now() - stats.mtimeMs > 1000*60*60*24) {
-            throw new Error('stale');
-        }
-    } catch (error) {
-        try {
-            bsgData = JSON.parse((await got('https://dev.sp-tarkov.com/SPT-AKI/Server/raw/branch/development/project/assets/database/templates/items.json')).body);
-            fs.writeFileSync('./items.json', JSON.stringify(bsgData, null, 4));
-        } catch (downloadError) {
-            if (error.message != 'stale') {
-                return Promise.reject(downloadError);
-            }
-        }
-    }
+    bsgData = await getJson.items();
 };
 
 const loadPresets = async () => {
-    try {
-        presets = JSON.parse(fs.readFileSync('./item_presets.json', 'utf8'));
-        const stats = fs.statSync('./item_presets.json');
-        if (Date.now() - stats.mtimeMs > 1000*60*60*24) {
-            throw new Error('stale');
-        }
-    } catch (error) {
-        try {
-            presets = JSON.parse((await got('https://raw.githubusercontent.com/Razzmatazzz/tarkovdata/master/item_presets.json')).body);
-            fs.writeFileSync('./item_presets.json', JSON.stringify(presets, null, 4));
-        } catch (downloadError) {
-            if (error.message != 'stale') {
-                return Promise.reject(downloadError);
-            }
-        }
-    }
+    presets = await getJson.tt_presets();
 };
 
 const loadSptPresets = async () => {
-    try {
-        sptPresets = JSON.parse(fs.readFileSync('./spt_presets.json', 'utf8'));
-        const stats = fs.statSync('./spt_presets.json');
-        if (Date.now() - stats.mtimeMs > 1000*60*60*24) {
-            throw new Error('stale');
-        }
-    } catch (error) {
-        try {
-            sptPresets = JSON.parse((await got('https://dev.sp-tarkov.com/SPT-AKI/Server/raw/branch/development/project/assets/database/globals.json')).body)['ItemPresets'];
-            fs.writeFileSync('./spt_presets.json', JSON.stringify(sptPresets, null, 4));
-        } catch (downloadError) {
-            if (error.message != 'stale') {
-                return Promise.reject(downloadError);
-            }
-        }
-    }
+    sptPresets = await getJson.presets();
 };
 
 const setBackgroundColor = (item) => {
@@ -477,9 +433,12 @@ const initialize = async (options) => {
         ...defaultOptions,
         ...options
     }
-    let mustInitHash = await loadBsgData();
-    mustInitHash == await loadPresets() || mustInitHash;
-    mustInitHash == await loadSptPresets() || mustInitHash;
+    if (options.API_USERNAME) process.env.API_USERNAME = options.API_USERNAME;
+    if (options.API_PASSWORD) process.env.API_PASSWORD = options.API_PASSWORD;
+    if (options.SCANNER_NAME) process.env.SCANNER_NAME = options.SCANNER_NAME;
+    await loadBsgData();
+    await loadPresets();
+    await loadSptPresets();
     if (!options.skipHashing) {
         await hashItems(opts);
     }

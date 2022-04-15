@@ -5,3 +5,5 @@ logging
 items.json
 item_presets.json
 spt_presets.json
+presets.json
+.env
