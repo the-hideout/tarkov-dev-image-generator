@@ -359,14 +359,14 @@ const hashItems = async (options) => {
         }
     }
     try {
-        let queryType = `itemsByType(type: any)`;
+        let queryArgs = '';
         //let queryParams = 'type: any';
         if (options.targetItemId) {
-            queryType = `item( id: "${options.targetItemId}")`;
+            queryArgs = `(ids: ["${options.targetItemId}"])`;
         }
         const response = await got.post('https://api.tarkov.dev/graphql', {
             body: JSON.stringify({query: `{
-                ${queryType}{
+                items${queryArgs} {
                   id
                   shortName
                   iconLink
@@ -377,15 +377,12 @@ const hashItems = async (options) => {
             }),
             responseType: 'json',
         });
-        if (options.targetItemId) {
-            response.body.data.itemsByType = [response.body.data.item];
-        }
         hashCalc.init(bsgData, sptPresets, presets);
         let missingGridImage = 0;
         let missingIcon = 0;
         let missingBaseImage = 0;
         let finished = false;
-        response.body.data.itemsByType.map((itemData) => {
+        response.body.data.items.map((itemData) => {
             if (finished || itemData.types.includes('disabled')) return;
             itemData.needs_grid_image = false;
             itemData.needs_icon_image = false;
@@ -466,13 +463,13 @@ const generate = async (options, forceImageIndex) => {
     }
     options = {
         ...defaultOptions,
-        ...options
+        ...options,
+        response: {
+            generated: {},
+            uploaded: {},
+            uploadErrors: {}
+        }
     };
-    options.response = {
-        generated: {},
-        uploaded: {},
-        uploadErrors: {}
-    }
     if (!bsgData) {
         await loadBsgData();
     }
