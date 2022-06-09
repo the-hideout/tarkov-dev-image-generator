@@ -85,7 +85,7 @@ const getIcon = async (filename, item, options) => {
     const sourceImage = await Jimp.read(path.join(iconCacheFolder, filename));
 
     const baseImagePromise = new Promise(resolve => {
-        if(item.needs_base_image){
+        if(item.needsBaseImage){
             console.log(`${item.id} should be uploaded for base-image`);
             fs.copyFileSync(path.join(iconCacheFolder, filename), path.join('./', 'generated-images-missing', `${item.id}-base-image.png`));
             options.response.generated[item.id].push('base');
@@ -95,7 +95,7 @@ const getIcon = async (filename, item, options) => {
 
     // create icon
     const iconPromise = new Promise(async resolve => {
-        if (options.generateOnlyMissing && !item.needs_icon_image) {
+        if (options.generateOnlyMissing && !item.needsIconImage) {
             resolve(true);
             return;
         }
@@ -116,7 +116,7 @@ const getIcon = async (filename, item, options) => {
 
         promises.push(image.writeAsync(path.join('./', 'generated-images', `${item.id}-icon.jpg`)));
 
-        if (item.needs_icon_image) {
+        if (item.needsIconImage) {
             console.log(`${item.id} should be uploaded for icon`);
             promises.push(image.writeAsync(path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`)));
         }
@@ -127,7 +127,7 @@ const getIcon = async (filename, item, options) => {
 
     // create grid image
     const gridImagePromise = new Promise(async resolve => {
-        if (options.generateOnlyMissing && !item.needs_grid_image) {
+        if (options.generateOnlyMissing && !item.needsGridImage) {
             resolve(true);
             return;
         }
@@ -275,7 +275,7 @@ const getIcon = async (filename, item, options) => {
 
         promises.push(image.writeAsync(path.join('./', 'generated-images', `${item.id}-grid-image.jpg`)));
 
-        if (item.needs_grid_image) {
+        if (item.needsGridImage) {
             console.log(`${item.id} should be uploaded for grid-image`);
             promises.push(image.writeAsync(path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`)));
         }
@@ -384,20 +384,20 @@ const hashItems = async (options) => {
         let finished = false;
         response.body.data.items.map((itemData) => {
             if (finished || itemData.types.includes('disabled')) return;
-            itemData.needs_grid_image = false;
-            itemData.needs_icon_image = false;
-            itemData.needs_base_image = false;
+            itemData.needsGridImage = false;
+            itemData.needsIconImage = false;
+            itemData.needsBaseImage = false;
             if(!itemData.gridImageLink){
-                itemData.needs_grid_image = true;
+                itemData.needsGridImage = true;
                 missingGridImage++;
             }
 
             if(!itemData.iconLink){
-                itemData.needs_icon_image = true;
+                itemData.needsIconImage = true;
                 missingIcon++;
             }
             if (foundBaseImages && !foundBaseImages.includes(itemData.id)) {
-                itemData.needs_base_image = true;
+                itemData.needsBaseImage = true;
                 missingBaseImage++;
             }
             setBackgroundColor(itemData);

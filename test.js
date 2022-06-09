@@ -131,14 +131,14 @@ const testItems = {
             name: 'Lucky Scav Junk box',
             shortName: 'Junk',
             match_index: 0,
-            needs_image: 0,
-            needs_grid_image: 0,
-            needs_icon_image: 0
+            needsImage: 0,
+            needsGridImage: 0,
+            needsIconImage: 0
         }
         results = await generateImages({
             item: {
                 ...item,
-                needs_base_image: false,
+                needsBaseImage: false,
                 types: ['barter', 'container']
             },
             generateOnlyMissing: true,
