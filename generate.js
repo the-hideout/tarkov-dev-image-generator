@@ -387,12 +387,12 @@ const hashItems = async (options) => {
             itemData.needsGridImage = false;
             itemData.needsIconImage = false;
             itemData.needsBaseImage = false;
-            if(!itemData.gridImageLink){
+            if (itemData.gridImageLink.includes('unknown-item')) {
                 itemData.needsGridImage = true;
                 missingGridImage++;
             }
 
-            if(!itemData.iconLink){
+            if (itemData.iconLink.includes('unknown-item')) {
                 itemData.needsIconImage = true;
                 missingIcon++;
             }
