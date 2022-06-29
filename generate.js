@@ -371,6 +371,7 @@ const hashItems = async (options) => {
                   shortName
                   iconLink
                   gridImageLink
+                  backgroundColor
                   types
                 }
               }`
@@ -400,7 +401,7 @@ const hashItems = async (options) => {
                 itemData.needsBaseImage = true;
                 missingBaseImage++;
             }
-            setBackgroundColor(itemData);
+            //setBackgroundColor(itemData);
 
             try {
                 const hash = hashCalc.getItemHash(itemData.id);
@@ -517,7 +518,9 @@ const generate = async (options, forceImageIndex) => {
         } else {
             item = options.item;
             options.targetItemId = item.id;
-            setBackgroundColor(item);
+            if (!item.backgroundColor) {
+                setBackgroundColor(item);
+            }
             try {
                 hashCalc.init(bsgData, sptPresets, presets);
                 item.hash = hashCalc.getItemHash(item.id);
