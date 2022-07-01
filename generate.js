@@ -373,18 +373,27 @@ const hashItems = async (options) => {
                   gridImageLink
                   backgroundColor
                   types
+                  properties {
+                    ...on ItemPropertiesPreset {
+                        baseItem {
+                            id
+                        }
+                    }
+                  }
                 }
               }`
             }),
             responseType: 'json',
+            resolveBodyOnly: true
         });
         hashCalc.init(bsgData, sptPresets, presets);
         let missingGridImage = 0;
         let missingIcon = 0;
         let missingBaseImage = 0;
-        let finished = false;
-        response.body.data.items.map((itemData) => {
-            if (finished || itemData.types.includes('disabled')) return;
+        //response.data.items.forEach((itemData) => {
+        for (let i = 0; i < response.data.items.length; i++) {
+            const itemData = response.data.items[i];
+            if (itemData.types.includes('disabled') || itemData.types.includes('preset')) continue;
             itemData.needsGridImage = false;
             itemData.needsIconImage = false;
             itemData.needsBaseImage = false;
@@ -413,9 +422,9 @@ const hashItems = async (options) => {
             itemsById[itemData.id] = itemData;
             if (itemData.id == options.targetItemId) {
                 console.log(itemData.hash);
-                finished = true;
+                break;
             }
-        });
+        };
         console.log(`Found ${missingGridImage} items missing a grid image, ${missingIcon} missing an icon, and ${missingBaseImage} missing a base image`);
     } catch (error) {
         return Promise.reject(error);
@@ -558,6 +567,7 @@ const generate = async (options, forceImageIndex) => {
             return Promise.reject(error);
         }
     } else {
+        await hashItems(options);
         const hashes = Object.keys(iconData);
         for (let i = 0; i < hashes.length; i++) {
             const hash = hashes[i];
