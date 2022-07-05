@@ -1,25 +1,24 @@
 let items = false;
 let presets = false;
 let ttPresets = false;
-const weaponTypes = [
-    '5447b5cf4bdc2d65278b4567', // pistol
-    '617f1ef5e8b54b0998387733', // revolver
-    '5447b5e04bdc2d62278b4567', // smg
-    '5447b5f14bdc2d61278b4567', // assault rifle
-    '5447b5fc4bdc2d87278b4567', // assault carbine
-    '5447b6094bdc2dc3278b4567', // shotgun
-    '5447b6194bdc2d67278b4567', // marksman rifle
-    '5447b6254bdc2dc3278b4568', // sniper rifle
-    '5447bed64bdc2d97278b4568', // machine gun
-    '5447bedf4bdc2d87278b4568', // grenade launcher
-    '5447bee84bdc2dc3278b4569', // special weapon (??)
-];
 
-const magazineTypes = [
-    '5448bc234bdc2d3c308b4569', // regular magazine
-    '610720f290b75a49ff2e5e25', // cylinder magazine
-    '627a137bf21bc425b06ab944' // spring driven cylinder magazine
-];
+const isWeapon = (item) => {
+    let category = item._parent;
+    while (category) {
+        if (category === '5422acb9af1c889c16000029') return true;
+        category = items[category]._parent;
+    }
+    return false;
+};
+
+const isMagazine = (item) => {
+    let category = item._parent;
+    while (category) {
+        if (category === '5448bc234bdc2d3c308b4569') return true;
+        category = items[category]._parent;
+    }
+    return false;
+};
 
 const buildPreset = (preset) => {
     let built = {};
@@ -119,7 +118,7 @@ const getItemHash = (itemId) => {
     const item = items[itemId];
     if (!item) return hash;
 
-    if (weaponTypes.includes(item._parent)) {
+    if (isWeapon(item)) {
         hash = getContainerHash(hash, item);
     }
     if (item._parent == '5485a8684bdc2da71d8b4567') {
@@ -183,7 +182,7 @@ const getSingleItemHash = (itemId, cartridges) => {
         if (item._props && item._props.Foldable) {
             hash ^= 23 << 1;
         }
-    } else if (magazineTypes.includes(item._parent)) {
+    } else if (isMagazine(item)) {
         // magazine
         //hash ^= getStringHash('cartridges');
         if (!cartridges) {
