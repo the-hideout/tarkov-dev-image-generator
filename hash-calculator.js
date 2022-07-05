@@ -17,7 +17,8 @@ const weaponTypes = [
 
 const magazineTypes = [
     '5448bc234bdc2d3c308b4569', // regular magazine
-    '610720f290b75a49ff2e5e25' // cylinder magazine
+    '610720f290b75a49ff2e5e25', // cylinder magazine
+    '627a137bf21bc425b06ab944' // spring driven cylinder magazine
 ];
 
 const buildPreset = (preset) => {
