@@ -393,7 +393,7 @@ const hashItems = async (options) => {
         //response.data.items.forEach((itemData) => {
         for (let i = 0; i < response.data.items.length; i++) {
             const itemData = response.data.items[i];
-            if (itemData.types.includes('disabled') || itemData.types.includes('preset')) continue;
+            if (itemData.types.includes('disabled')) continue;
             itemData.needsGridImage = false;
             itemData.needsIconImage = false;
             itemData.needsBaseImage = false;
@@ -574,6 +574,9 @@ const generate = async (options, forceImageIndex) => {
             try {
                 console.log(`Processing ${i + 1}/${hashes.length}`);
                 if (!itemsByHash[hash]) {
+                    continue;
+                }
+                if (itemsByHash[hash].types.includes('gun') || itemsByHash[hash].types.includes('preset')) {
                     continue;
                 }
                 await getIcon(`${iconData[hash]}.png`, itemsByHash[hash], options);
