@@ -16,6 +16,7 @@ module.exports = async (options) => {
     if (uploadFiles.length == 0) return 0;
     if (!process.env.API_USERNAME || !process.env.API_PASSWORD) {
         console.log('API_USERNAME and API_PASSWORD must be set to upload images');
+        return 0;
     }
     for(const filename of uploadFiles){
         const matches = filename.match(/(?<id>.{24})-(?<type>.+?)\.(?:jpg|png)/);
