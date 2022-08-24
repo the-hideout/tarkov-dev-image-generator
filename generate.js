@@ -14,7 +14,7 @@ const getJson = require('./get-json');
 
 let bsgData = false;
 let presets = false;
-let sptPresets = false;
+let bsgPresets = false;
 const itemsByHash = {};
 const itemsById = {};
 
@@ -322,11 +322,11 @@ const loadBsgData = async () => {
 };
 
 const loadPresets = async () => {
-    presets = await getJson.tt_presets();
+    presets = await getJson.td_presets();
 };
 
-const loadSptPresets = async () => {
-    sptPresets = await getJson.presets();
+const loadBsgPresets = async () => {
+    bsgPresets = await getJson.presets();
 };
 
 const setBackgroundColor = (item) => {
@@ -379,6 +379,11 @@ const hashItems = async (options) => {
                             id
                         }
                     }
+                    ...on ItemPropertiesWeapon {
+                        slots {
+                            name
+                        }
+                    }
                   }
                 }
               }`
@@ -386,7 +391,7 @@ const hashItems = async (options) => {
             responseType: 'json',
             resolveBodyOnly: true
         });
-        hashCalc.init(bsgData, sptPresets, presets);
+        hashCalc.init(bsgData, bsgPresets, presets);
         let missingGridImage = 0;
         let missingIcon = 0;
         let missingBaseImage = 0;
@@ -420,7 +425,7 @@ const hashItems = async (options) => {
                 console.log(`Error hashing ${itemData.id}: ${error}`);
             }
             itemsById[itemData.id] = itemData;
-            if (itemData.id == options.targetItemId) {
+            if (itemData.id == options.targetItemId && itemData.hash) {
                 console.log(itemData.hash);
                 break;
             }
@@ -445,7 +450,7 @@ const initialize = async (options) => {
     if (options.SCANNER_NAME) process.env.SCANNER_NAME = options.SCANNER_NAME;
     await loadBsgData();
     await loadPresets();
-    await loadSptPresets();
+    await loadBsgPresets();
     if (!options.skipHashing) {
         await hashItems(opts);
     }
@@ -486,8 +491,8 @@ const generate = async (options, forceImageIndex) => {
     if (!presets) {
         await loadPresets();
     }
-    if (!sptPresets) {
-        await loadSptPresets();
+    if (!bsgPresets) {
+        await loadBsgPresets();
     }
     if (!cacheIsLoaded()) {
         refreshCache();
@@ -531,7 +536,7 @@ const generate = async (options, forceImageIndex) => {
                 setBackgroundColor(item);
             }
             try {
-                hashCalc.init(bsgData, sptPresets, presets);
+                hashCalc.init(bsgData, bsgPresets, presets);
                 item.hash = hashCalc.getItemHash(item.id);
                 if (!itemsByHash[item.hash.toString()]) {
                     itemsByHash[item.hash.toString()] = item;

@@ -3,6 +3,7 @@ let presets = false;
 let ttPresets = false;
 
 const isWeapon = (item) => {
+    if (item._props?.Slots?.length < 1) return false;
     let category = item._parent;
     while (category) {
         if (category === '5422acb9af1c889c16000029') return true;

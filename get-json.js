@@ -58,7 +58,7 @@ module.exports = {
         }
         return presets;
     },
-    tt_presets: async () => {
+    td_presets: async () => {
         let presets = false;
         try {
             presets = JSON.parse(fs.readFileSync('./item_presets.json', 'utf8'));
@@ -68,7 +68,11 @@ module.exports = {
             }
         } catch (error) {
             try {
-                presets = JSON.parse((await got('https://raw.githubusercontent.com/Razzmatazzz/tarkovdata/master/item_presets.json')).body);
+                if (process.env.API_USERNAME && process.env.API_PASSWORD && process.env.SCANNER_NAME) {
+                    downloadedPresets = await api.getJson('presets.json').catch(() => { return false; });
+                    if (downloadedPresets) presets = downloadedPresets;
+                } 
+                if (!presets) throw new Error('Error downloading Tarkov.dev presets');
                 fs.writeFileSync('./item_presets.json', JSON.stringify(presets, null, 4));
             } catch (downloadError) {
                 if (error.message != 'stale') {
