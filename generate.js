@@ -6,7 +6,10 @@ const process = require('process');
 const EventEmitter = require('events');
 const got = require('got');
 
-const Jimp = require('jimp');
+process.env.FONTCONFIG_PATH = __dirname;
+//process.env.FC_DEBUG = 1;
+
+const sharp = require('sharp');
 
 const uploadImages = require('./upload-images');
 const hashCalc = require('./hash-calculator');
@@ -60,6 +63,117 @@ const colors = {
     ],
 };
 
+const getChecks = async (width, height, itemColors) => {
+    try {
+        const pixels = [];
+        let x = 0;
+        let y = 0;
+        while (pixels.length < width * height) {
+            pixels.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="${itemColors[(x + y) % 2]}"/>`);
+            if (x < width -1) {
+                x++;
+            } else {
+                x = 0;
+                y++;
+            }
+        }
+        const checks = Buffer.from(`
+            <svg width="${width}" height="${height}">
+                ${pixels.join('\n')}
+            </svg>
+        `);
+        return sharp(checks).png();
+    } catch (error) {
+        console.log(error);
+        return Promise.reject(error);
+    }
+};
+
+const getItemText = (shortName, fontSize = 12) => {
+    //${path.join(__dirname, 'fonts', 'bender.woff2')}
+    //
+    const svgBuffer = Buffer.from(`
+        <svg>
+            <style>
+                @font-face {
+                    font-family: MyBender;
+                    src: url("/fonts/Bender.ttf"),
+                        local("Bender");
+                }
+                .name-text {
+                    font-size: ${fontSize}px;
+                    font-family: Bender;
+                    paint-order: stroke;
+                    stroke: #000000;
+                    stroke-width: 2px;
+                    stroke-linecap: butt;
+                    stroke-linejoin: miter;
+                }
+            </style>
+            <text x="0" y="9" fill="white" class="name-text">${shortName}</text>
+        </svg>
+    `);
+    return sharp(svgBuffer).png();
+};
+
+const getItemTextWidth = async (shortName, imageWidth) => {
+    if (!shortName) {
+        return sharp({
+            create: {
+                width: 1,
+                height: 1,
+                channels: 4,
+                background: '#00000000'
+            }
+        });
+    }
+    // first try to fit the whole shortName, using font sizes 12-10
+    for (let fontSize = 12; fontSize > 9; fontSize--) {
+        const textImage = getItemText(shortName, fontSize);
+        const textMeta = await textImage.metadata();
+        if (textMeta.width <= imageWidth - 2) {
+            return textImage;
+        }
+    }
+    // if we couldn't fit the shortName, truncate the shortName at the
+    // last space or slash, whichever is later and try at font sizes 12-11
+    let clippedName = shortName;
+    while (clippedName.includes('/') || clippedName.includes(' ')) {
+        const lastSpace = clippedName.lastIndexOf(' ');
+        const lastSlash = clippedName.lastIndexOf('/');
+        let cutoff = lastSpace;
+        if (lastSlash > lastSpace) cutoff = lastSlash;
+        if (cutoff == -1) break;
+        clippedName = clippedName.substring(0, cutoff);
+        for (let fontSize = 12; fontSize > 10; fontSize--) {
+            let textImage = getItemText(clippedName, fontSize);
+            let textMeta = await textImage.metadata();
+            if (textMeta.width <= imageWidth - 2) {
+                return textImage;
+            }
+        }
+    }
+    // if we still couldn't fit the shortName, again truncate at the last space
+    // or slash (if any) and then drop one letter until we can fit it
+    clippedName = shortName;
+    const firstSpace = clippedName.indexOf(' ');
+    const firstSlash = clippedName.indexOf('/');
+    let cutoff = firstSpace;
+    if (firstSlash < firstSpace) cutoff = firstSlash;
+    if (cutoff == -1) cutoff = clippedName.length;
+    while (clippedName.length > 0) {
+        clippedName = clippedName.substring(0, clippedName.length-1);
+        for (let fontSize = 12; fontSize > 10; fontSize--) {
+            let textImage = getItemText(clippedName, fontSize);
+            let textMeta = await textImage.metadata();
+            if (textMeta.width <= imageWidth - 2) {
+                return textImage;
+            }
+        }
+    }
+    return Promise.reject(new Error(`Could not print shortName for ${shortName} at width ${imageWidth}`));
+};
+
 const getIcon = async (filename, item, options) => {
     if (!item) {
         console.log(`No item provided for ${filename}`);
@@ -82,8 +196,6 @@ const getIcon = async (filename, item, options) => {
     if (!options.response.uploaded[item.id]) options.response.uploaded[item.id] = [];
     if (!options.response.uploadErrors[item.id]) options.response.uploadErrors[item.id] = [];
 
-    const sourceImage = await Jimp.read(path.join(iconCacheFolder, filename));
-
     const baseImagePromise = new Promise(resolve => {
         if(item.needsBaseImage){
             console.log(`${item.id} should be uploaded for base-image`);
@@ -94,37 +206,38 @@ const getIcon = async (filename, item, options) => {
     });
 
     // create icon
-    const iconPromise = new Promise(async resolve => {
+    const iconPromise = new Promise(async (resolve, reject) => {
         if (options.generateOnlyMissing && !item.needsIconImage) {
             resolve(true);
             return;
         }
-        const promises = [];
-        const checks = new Jimp(62, 62);
-        checks.scan(0, 0, checks.bitmap.width, checks.bitmap.height, function(x, y) {
-            checks.setPixelColor(Jimp.cssColorToHex(itemColors[(x + y) % 2]), x, y);
-        });
-
-        const image = await Jimp.read(path.join(iconCacheFolder, filename));
-        image
-            .scaleToFit(64, 64)
-            .contain(64, 64)
-            .crop(1, 1, 62, 62)
-            .composite(checks, 0, 0, {
-                mode: Jimp.BLEND_DESTINATION_OVER,
+        try {
+            const promises = [];
+            const image = await sharp(path.join(iconCacheFolder, filename)).resize({width: 64, height: 64}).toBuffer();
+            let icon = await getChecks(64, 64, itemColors).then(async background => {
+                const buffer = await background.composite([{
+                    input: image,
+                    blend: 'over'
+                }]).toBuffer();
+                return sharp(buffer).extract({left: 1, top: 1, width: 62, height: 62});
             });
 
-        promises.push(image.writeAsync(path.join('./', 'generated-images', `${item.id}-icon.jpg`)));
+            promises.push(icon.jpeg({quality: 100}).toFile(path.join('./', 'generated-images', `${item.id}-icon.jpg`)));
 
-        if (item.needsIconImage) {
-            console.log(`${item.id} should be uploaded for icon`);
-            promises.push(image.writeAsync(path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`)));
+            if (item.needsIconImage) {
+                console.log(`${item.id} should be uploaded for icon`);
+                promises.push(icon.jpeg({quality: 100}).toFile(path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`)));
+            }
+
+            await Promise.all(promises);
+            options.response.generated[item.id].push('icon');
+            resolve(true);
+        } catch (error) {
+            console.log('icon error', error.constructor.name, error);
+            reject(error);
         }
-        await Promise.all(promises);
-        options.response.generated[item.id].push('icon');
-        resolve(true);
     });
-
+console.log(process.env)
     // create grid image
     const gridImagePromise = new Promise(async resolve => {
         if (options.generateOnlyMissing && !item.needsGridImage) {
@@ -132,17 +245,14 @@ const getIcon = async (filename, item, options) => {
             return;
         }
         const promises = [];
-        const checks = new Jimp(sourceImage.bitmap.width, sourceImage.bitmap.height);
-        checks.scan(0, 0, checks.bitmap.width, checks.bitmap.height, function(x, y) {
-            checks.setPixelColor(Jimp.cssColorToHex(itemColors[(x + y) % 2]), x, y);
-        });
-
-        const image = await Jimp.read(path.join(iconCacheFolder, filename));
-        image
-            .composite(checks, 0, 0, {
-                mode: Jimp.BLEND_DESTINATION_OVER,
-            });
-
+        const sourceImage = sharp(path.join(iconCacheFolder, filename));
+        const sourceMetadata = await sourceImage.metadata();
+        const background = await getChecks(sourceMetadata.width, sourceMetadata.height, itemColors);
+        const imageBuffer = await sourceImage.toBuffer();
+        background.composite([{
+            input: imageBuffer,
+            blend: 'over'
+        }]);
         if (shortName) {
             try {
                 shortName = shortName.trim().replace(/\r/g, '').replace(/\n/g, '');
@@ -153,137 +263,34 @@ const getIcon = async (filename, item, options) => {
         } else {
             console.log(`No shortName for ${JSON.stringify(item.id)}`);
         }
-        if (shortName) {
-            let namePrinted = false;
-            let fontSize = 12;
-            let textWidth = sourceImage.bitmap.width;
-            while (!namePrinted && fontSize > 9) {
-                await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-${fontSize}.fnt`)).then(font => {
-                    try {
-                        textWidth = Jimp.measureText(font, shortName);
-                        if (textWidth < sourceImage.bitmap.width) {
-                            image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                text: shortName,
-                                alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                            });
-                            namePrinted = true;
-                        }
-                    } catch (error) {
-                        console.log(`Error adding text to ${shortName} ${item.id}`);
-                        console.log(error);
-                    }
-                });
-                fontSize--;
-            }
-            let clippedName = shortName;
-            if (!namePrinted) {
-                while (!namePrinted && (clippedName.includes('/') || clippedName.includes(' '))) {
-                    const lastSpace = clippedName.lastIndexOf(' ');
-                    const lastSlash = clippedName.lastIndexOf('/');
-                    let cutoff = lastSpace;
-                    if (lastSlash > lastSpace) cutoff = lastSlash;
-                    if (cutoff == -1) break;
-                    clippedName = clippedName.substring(0, cutoff);
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-12.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                    if (namePrinted) break;
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-11.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                }
-            }
-            if (!namePrinted) {
-                clippedName = shortName;
-                const firstSpace = clippedName.indexOf(' ');
-                const firstSlash = clippedName.indexOf('/');
-                let cutoff = firstSpace;
-                if (firstSlash < firstSpace) cutoff = firstSlash;
-                if (cutoff == -1) cutoff = clippedName.length;
-                while (!namePrinted) {
-                    clippedName = clippedName.substring(0, clippedName.length-1);
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-12.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                    if (namePrinted) break;
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-11.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                }
-            }
-            if (!namePrinted) {
-                fs.writeFile(path.join('./', 'logging', `${shortName.replace(/[^a-zA-Z0-9]/g, '')}-${item.id}-not-printed.json`), JSON.stringify({shortName: shortName, id: item.id}, null, 4), 'utf8', (err) => {
-                    if (err) {
-                        console.log(`Error writing no prices found file: ${err}`);
-                    }
-                });
-            }
-        }
-
-        promises.push(image.writeAsync(path.join('./', 'generated-images', `${item.id}-grid-image.jpg`)));
+        const textImage = await getItemTextWidth(shortName, sourceMetadata.width);
+        const textMeta = await textImage.metadata();
+        const gridImage = sharp(await background.toBuffer()).composite([{
+            input: await textImage.toBuffer(),
+            blend: 'over',
+            top: 2,
+            left: sourceMetadata.width - textMeta.width - 2
+        }]);
+        
+        promises.push(gridImage.jpeg({quality: 100}).toFile(path.join('./', 'generated-images', `${item.id}-grid-image.jpg`)));
 
         if (item.needsGridImage) {
             console.log(`${item.id} should be uploaded for grid-image`);
-            promises.push(image.writeAsync(path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`)));
+            promises.push(gridImage.jpeg({quality: 100}).toFile(path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`)));
         }
         await Promise.all(promises);
         options.response.generated[item.id].push('grid image');
         resolve(true);
+    }).catch(error => {
+        console.log('grid image error', error);
+        return Promise.reject(error);
     });
-    await Promise.all([baseImagePromise, iconPromise, gridImagePromise]);
+    try {
+        await Promise.all([baseImagePromise, iconPromise, gridImagePromise]);
+    } catch (error) {
+        //console.log('all images error', error.message, error.stack);
+        throw(error);
+    }
     return true;
 }
 
