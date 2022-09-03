@@ -6,11 +6,10 @@ const process = require('process');
 const EventEmitter = require('events');
 const got = require('got');
 
-const Jimp = require('jimp');
-
 const uploadImages = require('./upload-images');
 const hashCalc = require('./hash-calculator');
 const getJson = require('./get-json');
+const imageFunctions = require('./image-functions');
 
 let bsgData = false;
 let presets = false;
@@ -21,270 +20,83 @@ const itemsById = {};
 const iconCacheFolder = process.env.LOCALAPPDATA+'\\Temp\\Battlestate Games\\EscapeFromTarkov\\Icon Cache\\live\\'
 let iconData = {};
 
-const colors = {
-    violet: [
-        '#271d2a',
-        '#2c232f',
-    ],
-    grey: [
-        '#191a1a',
-        '#1e1e1e',
-    ],
-    yellow: [
-        '#2f301d',
-        '#343421',
-    ],
-    orange: [
-        '#221611',
-        '#261d14',
-    ],
-    green: [
-        '#161c11',
-        '#1a2314',
-    ],
-    red: [
-        '#311c18',
-        '#38221f',
-    ],
-    default: [
-        '#363537',
-        '#3a3c3b',
-    ],
-    black: [
-        '#100f11',
-        '#141614',
-    ],
-    blue: [
-        '#1d262f',
-        '#202d32',
-    ],
-};
-
 const getIcon = async (filename, item, options) => {
     if (!item) {
         console.log(`No item provided for ${filename}`);
         return Promise.reject(new Error(`No item provided for ${filename}`));
     }
-    const itemColors = colors[item.backgroundColor];
 
-    if(!itemColors){
-        console.log(`No colors found for ${item.id} (${filename})`);
-        return Promise.reject(new Error(`No colors found for ${item.id}`));
-    }
+    const filepath = path.join(options.filePath || iconCacheFolder, filename);
 
-    let shortName = false;
-    if (presets[item.id]) {
-        shortName = presets[item.id].name+'';
-    } else {
-        shortName = item.shortName+'';
-    }
     if (!options.response.generated[item.id]) options.response.generated[item.id] = [];
     if (!options.response.uploaded[item.id]) options.response.uploaded[item.id] = [];
     if (!options.response.uploadErrors[item.id]) options.response.uploadErrors[item.id] = [];
 
-    const sourceImage = await Jimp.read(path.join(iconCacheFolder, filename));
-
+    // create base image
     const baseImagePromise = new Promise(resolve => {
-        if(item.needsBaseImage){
-            console.log(`${item.id} should be uploaded for base-image`);
-            fs.copyFileSync(path.join(iconCacheFolder, filename), path.join('./', 'generated-images-missing', `${item.id}-base-image.png`));
-            options.response.generated[item.id].push('base');
+        if (options.generateOnlyMissing && !item.needsBaseImage) {
+            return resolve(true);
         }
-        resolve(true);
+        resolve(imageFunctions.createBaseImage(filepath, item).then(result => {
+            options.response.generated[item.id].push('base');
+            if (item.needsBaseImage && options.upload){
+                console.log(`${item.id} should be uploaded for base-image`);
+                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-base-image.png`));
+            }
+            return {path: result.path, type: 'base'};
+        }));
     });
 
     // create icon
-    const iconPromise = new Promise(async resolve => {
+    const iconPromise = new Promise(resolve => {
         if (options.generateOnlyMissing && !item.needsIconImage) {
-            resolve(true);
-            return;
+            return resolve(true);
         }
-        const promises = [];
-        const checks = new Jimp(62, 62);
-        checks.scan(0, 0, checks.bitmap.width, checks.bitmap.height, function(x, y) {
-            checks.setPixelColor(Jimp.cssColorToHex(itemColors[(x + y) % 2]), x, y);
-        });
-
-        const image = await Jimp.read(path.join(iconCacheFolder, filename));
-        image
-            .scaleToFit(64, 64)
-            .contain(64, 64)
-            .crop(1, 1, 62, 62)
-            .composite(checks, 0, 0, {
-                mode: Jimp.BLEND_DESTINATION_OVER,
-            });
-
-        promises.push(image.writeAsync(path.join('./', 'generated-images', `${item.id}-icon.jpg`)));
-
-        if (item.needsIconImage) {
-            console.log(`${item.id} should be uploaded for icon`);
-            promises.push(image.writeAsync(path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`)));
-        }
-        await Promise.all(promises);
-        options.response.generated[item.id].push('icon');
-        resolve(true);
+        resolve(imageFunctions.createIcon(filepath, item).then(result => {
+            options.response.generated[item.id].push('icon');
+            if (item.needsIconImage && options.upload) {
+                console.log(`${item.id} should be uploaded for icon`);
+                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`));
+            }
+            return {path: result.path, type: 'icon'};
+        }));
     });
 
     // create grid image
-    const gridImagePromise = new Promise(async resolve => {
+    const gridImagePromise = new Promise(resolve => {
         if (options.generateOnlyMissing && !item.needsGridImage) {
-            resolve(true);
-            return;
+            return resolve(true);
         }
-        const promises = [];
-        const checks = new Jimp(sourceImage.bitmap.width, sourceImage.bitmap.height);
-        checks.scan(0, 0, checks.bitmap.width, checks.bitmap.height, function(x, y) {
-            checks.setPixelColor(Jimp.cssColorToHex(itemColors[(x + y) % 2]), x, y);
-        });
-
-        const image = await Jimp.read(path.join(iconCacheFolder, filename));
-        image
-            .composite(checks, 0, 0, {
-                mode: Jimp.BLEND_DESTINATION_OVER,
-            });
-
-        if (shortName) {
-            try {
-                shortName = shortName.trim().replace(/\r/g, '').replace(/\n/g, '');
-            } catch (error) {
-                console.log(`Error trimming shortName ${shortName} for ${JSON.stringify(item.id)}`);
-                shortName = false;
+        resolve(imageFunctions.createGridImage(filepath, item).then(result => {
+            options.response.generated[item.id].push('grid image');
+            if (item.needsGridImage && options.upload) {
+                console.log(`${item.id} should be uploaded for grid-image`);
+                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`));
             }
-        } else {
-            console.log(`No shortName for ${JSON.stringify(item.id)}`);
-        }
-        if (shortName) {
-            let namePrinted = false;
-            let fontSize = 12;
-            let textWidth = sourceImage.bitmap.width;
-            while (!namePrinted && fontSize > 9) {
-                await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-${fontSize}.fnt`)).then(font => {
-                    try {
-                        textWidth = Jimp.measureText(font, shortName);
-                        if (textWidth < sourceImage.bitmap.width) {
-                            image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                text: shortName,
-                                alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                            });
-                            namePrinted = true;
-                        }
-                    } catch (error) {
-                        console.log(`Error adding text to ${shortName} ${item.id}`);
-                        console.log(error);
-                    }
-                });
-                fontSize--;
-            }
-            let clippedName = shortName;
-            if (!namePrinted) {
-                while (!namePrinted && (clippedName.includes('/') || clippedName.includes(' '))) {
-                    const lastSpace = clippedName.lastIndexOf(' ');
-                    const lastSlash = clippedName.lastIndexOf('/');
-                    let cutoff = lastSpace;
-                    if (lastSlash > lastSpace) cutoff = lastSlash;
-                    if (cutoff == -1) break;
-                    clippedName = clippedName.substring(0, cutoff);
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-12.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                    if (namePrinted) break;
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-11.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                }
-            }
-            if (!namePrinted) {
-                clippedName = shortName;
-                const firstSpace = clippedName.indexOf(' ');
-                const firstSlash = clippedName.indexOf('/');
-                let cutoff = firstSpace;
-                if (firstSlash < firstSpace) cutoff = firstSlash;
-                if (cutoff == -1) cutoff = clippedName.length;
-                while (!namePrinted) {
-                    clippedName = clippedName.substring(0, clippedName.length-1);
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-12.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                    if (namePrinted) break;
-                    await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-11.fnt`)).then(font => {
-                        try {
-                            textWidth = Jimp.measureText(font, clippedName);
-                            if (textWidth < sourceImage.bitmap.width) {
-                                image.print(font, sourceImage.bitmap.width-textWidth-2, 2, {
-                                    text: clippedName,
-                                    alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                                    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                                });
-                                namePrinted = true;
-                            }
-                        } catch (error) {
-                            console.log(`Error adding text to ${shortName} ${item.id}`);
-                            console.log(error);
-                        }
-                    });
-                }
-            }
-            if (!namePrinted) {
-                fs.writeFile(path.join('./', 'logging', `${shortName.replace(/[^a-zA-Z0-9]/g, '')}-${item.id}-not-printed.json`), JSON.stringify({shortName: shortName, id: item.id}, null, 4), 'utf8', (err) => {
-                    if (err) {
-                        console.log(`Error writing no prices found file: ${err}`);
-                    }
-                });
-            }
-        }
-
-        promises.push(image.writeAsync(path.join('./', 'generated-images', `${item.id}-grid-image.jpg`)));
-
-        if (item.needsGridImage) {
-            console.log(`${item.id} should be uploaded for grid-image`);
-            promises.push(image.writeAsync(path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`)));
-        }
-        await Promise.all(promises);
-        options.response.generated[item.id].push('grid image');
-        resolve(true);
+            return {path: result.path, type: 'grid'};
+        }));
     });
-    await Promise.all([baseImagePromise, iconPromise, gridImagePromise]);
-    return true;
+
+    // create large image
+    const largeImagePromise = new Promise(resolve => {
+        if (options.generateOnlyMissing && !item.needsLargeImage) {
+            return resolve(true);
+        }
+        resolve(imageFunctions.createLargeImage(filepath, item).then(result => {
+            options.response.generated[item.id].push('large image');
+            if (item.needsLargeImage && options.upload) {
+                console.log(`${item.id} should be uploaded for large image`);
+                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-large.png`));
+            }
+            return {path: result.path, type: 'large'};
+        }).catch(error => {
+            console.log(`Error creating large image for ${item.id}`, error);
+            return false;
+        }));
+    });
+    return Promise.all([baseImagePromise, iconPromise, gridImagePromise, largeImagePromise]).then(results => {
+        return results.filter(Boolean);
+    });
 }
 
 const cacheListener = new EventEmitter();
@@ -317,15 +129,27 @@ const cacheIsLoaded = () => {
     return false;
 };
 
-const loadBsgData = async () => {
+const loadBsgData = async (options) => {
+    if (options && options.bsgItems) {
+        bsgData = options.bsgItems;
+        return;
+    }
     bsgData = await getJson.items();
 };
 
-const loadPresets = async () => {
+const loadPresets = async (options) => {
+    if (options && options.tdPresets) {
+        presets = options.tdPresets;
+        return;
+    }
     presets = await getJson.td_presets();
 };
 
-const loadBsgPresets = async () => {
+const loadBsgPresets = async (options) => {
+    if (options && options.bsgPresets) {
+        bsgPresets = options.bsgPresets;
+        return;
+    }
     bsgPresets = await getJson.presets();
 };
 
@@ -333,7 +157,7 @@ const setBackgroundColor = (item) => {
     item.backgroundColor = 'default';
     if (bsgData && bsgData[item.id]) {
         if (bsgData[item.id]._props) {
-            if (colors[bsgData[item.id]._props.BackgroundColor]) {
+            if (imageFunctions.colors[bsgData[item.id]._props.BackgroundColor]) {
                 item.backgroundColor = bsgData[item.id]._props.BackgroundColor;
             }
         }
@@ -368,11 +192,14 @@ const hashItems = async (options) => {
             body: JSON.stringify({query: `{
                 items${queryArgs} {
                   id
+                  name
                   shortName
                   iconLink
                   gridImageLink
                   backgroundColor
                   types
+                  width
+                  height
                   properties {
                     ...on ItemPropertiesPreset {
                         baseItem {
@@ -448,9 +275,9 @@ const initialize = async (options) => {
     if (options.API_USERNAME) process.env.API_USERNAME = options.API_USERNAME;
     if (options.API_PASSWORD) process.env.API_PASSWORD = options.API_PASSWORD;
     if (options.SCANNER_NAME) process.env.SCANNER_NAME = options.SCANNER_NAME;
-    await loadBsgData();
-    await loadPresets();
-    await loadBsgPresets();
+    await loadBsgData(opts);
+    await loadPresets(opts);
+    await loadBsgPresets(opts);
     if (!options.skipHashing) {
         await hashItems(opts);
     }
@@ -486,13 +313,13 @@ const generate = async (options, forceImageIndex) => {
         }
     };
     if (!bsgData) {
-        await loadBsgData();
+        await loadBsgData(options);
     }
     if (!presets) {
-        await loadPresets();
+        await loadPresets(options);
     }
     if (!bsgPresets) {
-        await loadBsgPresets();
+        await loadBsgPresets(options);
     }
     if (!cacheIsLoaded()) {
         refreshCache();
@@ -656,5 +483,7 @@ module.exports = {
             readyWatcher.close();
             readyWatcher = false;
         }
-    }
+    },
+    getImagesFromSource: getIcon,
+    imageFunctions: imageFunctions
 };

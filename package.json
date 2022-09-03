@@ -17,7 +17,7 @@
     "dotenv": "^16.0.0",
     "form-data": "^4.0.0",
     "got": "^11.8.2",
-    "jimp": "^0.16.1",
+    "jimp-compact": "0.16.1-2",
     "hashcode": "^1.0.3"
   },
   "repository": {
