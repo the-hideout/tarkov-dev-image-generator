@@ -224,7 +224,7 @@ const createInspectImage = async(sourceImage, item) => {
     }
 
     if (!await canCreateInspectImage(sourceImage)) {
-        return Promise.reject(`${filepath} for ${item.name} ${item.id} is not large enough, must be at least 448px wide or tall`);
+        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough, must be at least 448px wide or tall`);
     }
 
     if (sourceImage.bitmap.width > 450 || sourceImage.bitmap.height > 350) {
@@ -260,7 +260,7 @@ const createLargeImage = async(image, item) => {
     }
 
     if (!await canCreateLargeImage(image)) {
-        return Promise.reject(`${filepath} for ${item.name} ${item.id} is not large enough, must be at least 512px wide or tall`);
+        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough, must be at least 512px wide or tall`);
     }
 
     if (image.bitmap.width > 512 || image.bitmap.height > 512) {

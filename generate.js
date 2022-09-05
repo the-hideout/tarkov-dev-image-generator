@@ -449,7 +449,7 @@ const generate = async (options, forceImageIndex) => {
     }
 
     if (options.upload) {
-        //await uploadImages(options);
+        await uploadImages(options);
     }
     return options.response;
 };
