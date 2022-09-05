@@ -5,6 +5,7 @@ const path = require('path');
 const process = require('process');
 const EventEmitter = require('events');
 const got = require('got');
+const Jimp = require('jimp-compact');
 
 const uploadImages = require('./upload-images');
 const hashCalc = require('./hash-calculator');
@@ -27,6 +28,7 @@ const getIcon = async (filename, item, options) => {
     }
 
     const filepath = path.join(options.filePath || iconCacheFolder, filename);
+    const sourceImage = await Jimp.read(filepath);
 
     if (!options.response.generated[item.id]) options.response.generated[item.id] = [];
     if (!options.response.uploaded[item.id]) options.response.uploaded[item.id] = [];
@@ -35,9 +37,9 @@ const getIcon = async (filename, item, options) => {
     // create base image
     const baseImagePromise = new Promise(resolve => {
         if (options.generateOnlyMissing && !item.needsBaseImage) {
-            return resolve(true);
+            return resolve(false);
         }
-        resolve(imageFunctions.createBaseImage(filepath, item).then(result => {
+        resolve(imageFunctions.createBaseImage(sourceImage, item).then(result => {
             options.response.generated[item.id].push('base');
             if (item.needsBaseImage && options.upload){
                 console.log(`${item.id} should be uploaded for base-image`);
@@ -50,9 +52,9 @@ const getIcon = async (filename, item, options) => {
     // create icon
     const iconPromise = new Promise(resolve => {
         if (options.generateOnlyMissing && !item.needsIconImage) {
-            return resolve(true);
+            return resolve(false);
         }
-        resolve(imageFunctions.createIcon(filepath, item).then(result => {
+        resolve(imageFunctions.createIcon(sourceImage, item).then(result => {
             options.response.generated[item.id].push('icon');
             if (item.needsIconImage && options.upload) {
                 console.log(`${item.id} should be uploaded for icon`);
@@ -65,9 +67,9 @@ const getIcon = async (filename, item, options) => {
     // create grid image
     const gridImagePromise = new Promise(resolve => {
         if (options.generateOnlyMissing && !item.needsGridImage) {
-            return resolve(true);
+            return resolve(false);
         }
-        resolve(imageFunctions.createGridImage(filepath, item).then(result => {
+        resolve(imageFunctions.createGridImage(sourceImage, item).then(result => {
             options.response.generated[item.id].push('grid image');
             if (item.needsGridImage && options.upload) {
                 console.log(`${item.id} should be uploaded for grid-image`);
@@ -80,9 +82,9 @@ const getIcon = async (filename, item, options) => {
     // create large image
     const largeImagePromise = new Promise(resolve => {
         if (options.generateOnlyMissing && !item.needsLargeImage) {
-            return resolve(true);
+            return resolve(false);
         }
-        resolve(imageFunctions.createLargeImage(filepath, item).then(result => {
+        resolve(imageFunctions.createLargeImage(sourceImage, item).then(result => {
             options.response.generated[item.id].push('large image');
             if (item.needsLargeImage && options.upload) {
                 console.log(`${item.id} should be uploaded for large image`);
@@ -94,8 +96,28 @@ const getIcon = async (filename, item, options) => {
             return false;
         }));
     });
-    return Promise.all([baseImagePromise, iconPromise, gridImagePromise, largeImagePromise]).then(results => {
+
+    // create inspect image
+    const inspectImagePromise = new Promise(resolve => {
+        if (options.generateOnlyMissing && !item.needsInspectImage) {
+            return resolve(false);
+        }
+        resolve(imageFunctions.createInspectImage(sourceImage, item).then(result => {
+            options.response.generated[item.id].push('inspect image');
+            if (item.needsLargeImage && options.upload) {
+                console.log(`${item.id} should be uploaded for inspect image`);
+                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-image.jpg`));
+            }
+            return {path: result.path, type: 'image'};
+        }).catch(error => {
+            console.log(`Error creating inspect image for ${item.id}`, error);
+            return false;
+        }));
+    });
+    return Promise.all([baseImagePromise, iconPromise, gridImagePromise, largeImagePromise, inspectImagePromise]).then(results => {
         return results.filter(Boolean);
+    }).catch(error => {
+        console.log(error);
     });
 }
 
@@ -196,6 +218,7 @@ const hashItems = async (options) => {
                   shortName
                   iconLink
                   gridImageLink
+                  imageLink
                   backgroundColor
                   types
                   width
@@ -222,6 +245,7 @@ const hashItems = async (options) => {
         let missingGridImage = 0;
         let missingIcon = 0;
         let missingBaseImage = 0;
+        let missingInspectImage = 0;
         //response.data.items.forEach((itemData) => {
         for (let i = 0; i < response.data.items.length; i++) {
             const itemData = response.data.items[i];
@@ -229,6 +253,8 @@ const hashItems = async (options) => {
             itemData.needsGridImage = false;
             itemData.needsIconImage = false;
             itemData.needsBaseImage = false;
+            itemData.needsInspectImage = false;
+            itemData.needsLargeImage = false;
             if (itemData.gridImageLink.includes('unknown-item')) {
                 itemData.needsGridImage = true;
                 missingGridImage++;
@@ -241,6 +267,10 @@ const hashItems = async (options) => {
             if (foundBaseImages && !foundBaseImages.includes(itemData.id)) {
                 itemData.needsBaseImage = true;
                 missingBaseImage++;
+            }
+            if (itemData.imageLink.includes('unknown-item')) {
+                itemData.needsInspectImage = true;
+                missingInspectImage++;
             }
             //setBackgroundColor(itemData);
 
@@ -257,7 +287,7 @@ const hashItems = async (options) => {
                 break;
             }
         };
-        console.log(`Found ${missingGridImage} items missing a grid image, ${missingIcon} missing an icon, and ${missingBaseImage} missing a base image`);
+        console.log(`Found ${missingGridImage} items missing a grid image, ${missingIcon} missing an icon, ${missingBaseImage} missing a base image, ${missingInspectImage} missing a handbhook image`);
     } catch (error) {
         return Promise.reject(error);
     }
@@ -419,7 +449,7 @@ const generate = async (options, forceImageIndex) => {
     }
 
     if (options.upload) {
-        await uploadImages(options);
+        //await uploadImages(options);
     }
     return options.response;
 };

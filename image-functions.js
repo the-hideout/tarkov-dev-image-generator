@@ -69,45 +69,74 @@ const getFont = async (fontSize = 12) => {
     return fonts[fontSize];
 };
 
-const createIcon = async (filepath, item) => {
-    const itemColors = colors[item.backgroundColor];
-
-    if (!itemColors){
-        return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
+const printText = async (image, text, fontSize = 12) => {
+    if (!text) {
+        return Promise.reject(new Error('You must provide text to print on the image'));
     }
-
-    const image = await Jimp.read(filepath);
-    image
-        .scaleToFit(64, 64)
-        .contain(64, 64)
-        .crop(1, 1, 62, 62)
-        .composite(getChecks(62, 62, itemColors), 0, 0, {
-            mode: Jimp.BLEND_DESTINATION_OVER,
+    let font = await getFont(fontSize);
+    const textWidth = Jimp.measureText(font, text);
+    if (textWidth <= image.bitmap.width-2) {
+        image.print(font, image.bitmap.width-textWidth-2, 2, {
+            text: text,
+            alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
+            alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
         });
-
-    const iconPath = path.join('./', 'generated-images', `${item.id}-icon.jpg`);
-    await image.writeAsync(iconPath);
-    return {path: iconPath, image: image};
+        return true;
+    }
+    return false;
 };
 
-const createGridImage = async (filepath, item) => {
+const createIcon = async (sourceImage, item) => {
     const itemColors = colors[item.backgroundColor];
-
     if (!itemColors){
         return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
     }
 
-    const image = await Jimp.read(filepath);
-    const resize = resizeToGrid(image, item);
+    if (typeof sourceImage === 'string') {
+        sourceImage = await Jimp.read(sourceImage);
+    } else {
+        sourceImage = sourceImage.clone();
+    }
+
+    if (sourceImage.bitmap.width < 64 || sourceImage.bitmap.height < 64) {
+        return Promise.reject(new Error(`Source image is ${sourceImage.bitmap.width}x${sourceImage.bitmap.height}; icon requires at least 64x64`));
+    }
+
+    const iconImage = getChecks(62, 62, itemColors);
+
+    iconImage.composite(sourceImage.contain(64, 64).crop(1, 1, 62, 62), 0, 0);
+
+    const iconPath = path.join('./', 'generated-images', `${item.id}-icon.jpg`);
+    await iconImage.writeAsync(iconPath);
+    return {path: iconPath, image: iconImage};
+};
+
+const createGridImage = async (sourceImage, item) => {
+    const itemColors = colors[item.backgroundColor];
+    if (!itemColors){
+        return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
+    }
+
+    if (typeof sourceImage === 'string') {
+        sourceImage = await Jimp.read(sourceImage);
+    } else {
+        sourceImage = sourceImage.clone();
+    }
+
+    const resize = resizeToGrid(sourceImage, item);
     if (resize) {
         //console.log(`Resizing ${item.name} ${item.id} from ${image.bitmap.width}x${image.bitmap.height} to ${resize.width}x${resize.height} for grid image`);
-        image.scaleToFit(resize.width, resize.height);
+        if (sourceImage.bitmap.width < resize.width || sourceImage.bitmap.height < resize.height) {
+            return Promise.reject(new Error(`Source image is ${sourceImage.bitmap.width}x${sourceImage.bitmap.height}; grid image requires at least ${resize.width}x${resize.height}`));
+        }
+        sourceImage.scaleToFit(resize.width, resize.height);
     }
-    image.composite(getChecks(image.bitmap.width, image.bitmap.height, itemColors), 0, 0, {
-        mode: Jimp.BLEND_DESTINATION_OVER,
-    });
 
-    let shortName = item.shortName+'';
+    const gridImage = getChecks(sourceImage.bitmap.width, sourceImage.bitmap.height, itemColors);
+
+    gridImage.composite(sourceImage, 0, 0);
+
+    let shortName = String(item.shortName);
     if (shortName) {
         try {
             shortName = shortName.trim().replace(/\r/g, '').replace(/\n/g, '');
@@ -120,24 +149,12 @@ const createGridImage = async (filepath, item) => {
     }
     if (shortName) {
         let namePrinted = false;
-        let textWidth = image.bitmap.width;
+        // first we try to add the full shortName in font sized 12-10
         for (let fontSize = 12; !namePrinted && fontSize > 9; fontSize--) {
-            const font = await getFont(fontSize);
-            try {
-                textWidth = Jimp.measureText(font, shortName);
-                if (textWidth <= image.bitmap.width-2) {
-                    image.print(font, image.bitmap.width-textWidth-2, 2, {
-                        text: shortName,
-                        alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                        alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                    });
-                    namePrinted = true;
-                }
-            } catch (error) {
-                console.log(`Error adding text to ${shortName} ${item.id}`);
-                console.log(error);
-            }
+            namePrinted = await printText(gridImage, shortName, fontSize);
         }
+        // if we haven't pritned the name, try truncating the shortName at the last
+        // space or slash, whichever comes later
         let clippedName = shortName;
         while (!namePrinted && (clippedName.includes('/') || clippedName.includes(' '))) {
             const lastSpace = clippedName.lastIndexOf(' ');
@@ -147,64 +164,41 @@ const createGridImage = async (filepath, item) => {
             if (cutoff == -1) break;
             clippedName = clippedName.substring(0, cutoff);
             for (let fontSize = 12; fontSize > 10 && !namePrinted; fontSize--) {
-                let font = await getFont(fontSize);
-                try {
-                    textWidth = Jimp.measureText(font, clippedName);
-                    if (textWidth <= image.bitmap.width-2) {
-                        image.print(font, image.bitmap.width-textWidth-2, 2, {
-                            text: clippedName,
-                            alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                            alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                        });
-                        namePrinted = true;
-                    }
-                } catch (error) {
-                    console.log(`Error adding text to ${shortName} ${item.id}`);
-                    console.log(error);
-                }
+                namePrinted = await printText(gridImage, clippedName, fontSize);
             }
         }
+        // if we still haven't printed the name, drop one letter at a time and try on
+        // font sizes 12-10 until something fits
         while (!namePrinted && clippedName.length > 0) {
             clippedName = clippedName.substring(0, clippedName.length-1);
             for (let fontSize = 12; fontSize > 10 && !namePrinted; fontSize--) {
-                let font = await getFont(fontSize);
-                try {
-                    textWidth = Jimp.measureText(font, clippedName);
-                    if (textWidth <= image.bitmap.width-2) {
-                        image.print(font, image.bitmap.width-textWidth-2, 2, {
-                            text: clippedName,
-                            alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-                            alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-                        });
-                        namePrinted = true;
-                    }
-                } catch (error) {
-                    console.log(`Error adding text to ${shortName} ${item.id}`);
-                    console.log(error);
-                }
+                namePrinted = await printText(gridImage, clippedName, fontSize);
             }
         }
         if (!namePrinted) {
-            fs.writeFile(path.join('./', 'logging', `${shortName.replace(/[^a-zA-Z0-9]/g, '')}-${item.id}-not-printed.json`), JSON.stringify({shortName: shortName, id: item.id}, null, 4), 'utf8', (err) => {
-                if (err) {
-                    console.log(`Error writing no prices found file: ${err}`);
-                }
-            });
+            return Promise.reject(new Error(`Unable print shortName (${item.shortName}) on grid image for ${item.id}`));
         }
     }
 
     const gridImagePath = path.join('./', 'generated-images', `${item.id}-grid-image.jpg`);
-    await image.writeAsync(gridImagePath);
+    await gridImage.writeAsync(gridImagePath);
 
-    return {path: gridImagePath, image: image};
+    return {path: gridImagePath, image: gridImage};
 };
 
-const createBaseImage = async (filepath, item) => {
-    const image = await Jimp.read(filepath);
+const createBaseImage = async (image, item) => {
+    if (typeof image === 'string') {
+        image = await Jimp.read(image);
+    } else {
+        image = image.clone();
+    }
 
     const resize = resizeToGrid(image, item);
     if (resize) {
         //console.log(`Resizing ${item.name} ${item.id} from ${image.bitmap.width}x${image.bitmap.height} to ${resize.width}x${resize.height} for base image`);
+        if (image.bitmap.width < resize.width || image.bitmap.height < resize.height) {
+            return Promise.reject(new Error(`Source image is ${image.bitmap.width}x${image.bitmap.height}; base image requires at least ${resize.width}x${resize.height}`));
+        }
         image.scaleToFit(resize.width, resize.height);
     }
 
@@ -214,25 +208,63 @@ const createBaseImage = async (filepath, item) => {
     return {path: baseImagePath, image: image};
 };
 
-const createLargeImage = async(filepath, item) => {
-    const image = await Jimp.read(filepath);
+const canCreateInspectImage = async (image) => {
+    if (typeof image === 'string') image = await Jimp.read(image);
+    if (image.bitmap.width >= 450 || image.bitmap.height >= 350) {
+        return true;
+    }
+    return false;
+};
 
-    if (image.bitmap.width < 512 && image.bitmap.height < 512) {
+const createInspectImage = async(sourceImage, item) => {
+    if (typeof sourceImage === 'string') {
+        sourceImage = await Jimp.read(sourceImage)
+    } else {
+        sourceImage = sourceImage.clone();
+    }
+
+    if (!await canCreateInspectImage(sourceImage)) {
+        return Promise.reject(`${filepath} for ${item.name} ${item.id} is not large enough, must be at least 448px wide or tall`);
+    }
+
+    if (sourceImage.bitmap.width > 450 || sourceImage.bitmap.height > 350) {
+        sourceImage.scaleToFit(450, 350);
+    }
+
+    const inspectImage = await Jimp.read(path.join(__dirname, 'background.png'));
+
+    inspectImage.composite(sourceImage, 
+        Math.round(inspectImage.bitmap.width/2)-Math.round(sourceImage.bitmap.width/2), 
+        Math.round(inspectImage.bitmap.height/2)-Math.round(sourceImage.bitmap.height/2)
+    );
+
+    const inspectImagePath = path.join('./', 'generated-images', `${item.id}-image.jpg`);
+    await inspectImage.writeAsync(inspectImagePath);
+
+    return {path: inspectImagePath, image: inspectImage};
+};
+
+const canCreateLargeImage = async (image) => {
+    if (typeof image === 'string') image = await Jimp.read(image);
+    if (image.bitmap.width >= 512 || image.bitmap.height >= 512) {
+        return true;
+    }
+    return false;
+};
+
+const createLargeImage = async(image, item) => {
+    if (typeof image === 'string') {
+        image = await Jimp.read(image)
+    } else {
+        image = image.clone();
+    }
+
+    if (!await canCreateLargeImage(image)) {
         return Promise.reject(`${filepath} for ${item.name} ${item.id} is not large enough, must be at least 512px wide or tall`);
     }
 
     if (image.bitmap.width > 512 || image.bitmap.height > 512) {
-        let newWidth = Jimp.AUTO;
-        let newHeight = Jimp.AUTO;
-        if (image.bitmap.width > image.bitmap.height) {
-            newWidth = 512;
-        } else if (image.bitmap.height > image.bitmap.width) {
-            newHeight = 512;
-        } else {
-            newWidth = 512;
-            newHeight = 512;
-        }
-        image.resize(newWidth, newHeight);
+        image.scaleToFit(512, 512);
     }
 
     const largeImagePath = path.join('./', 'generated-images', `${item.id}-large.png`);
@@ -246,5 +278,8 @@ module.exports = {
     createIcon: createIcon,
     createGridImage: createGridImage,
     createBaseImage: createBaseImage,
-    createLargeImage: createLargeImage
+    createLargeImage: createLargeImage,
+    createInspectImage: createInspectImage,
+    canCreateLargeImage: canCreateLargeImage,
+    canCreateInspectImage: canCreateInspectImage
 };
