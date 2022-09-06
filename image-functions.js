@@ -227,8 +227,8 @@ const createInspectImage = async(sourceImage, item) => {
         return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough, must be at least 448px wide or tall`);
     }
 
-    if (sourceImage.bitmap.width > 450 || sourceImage.bitmap.height > 350) {
-        sourceImage.scaleToFit(450, 350);
+    if (sourceImage.bitmap.width > 600 || sourceImage.bitmap.height > 350) {
+        sourceImage.scaleToFit(600, 350);
     }
 
     const inspectImage = await Jimp.read(path.join(__dirname, 'background.png'));
