@@ -210,7 +210,7 @@ const createBaseImage = async (image, item) => {
 
 const canCreateInspectImage = async (image) => {
     if (typeof image === 'string') image = await Jimp.read(image);
-    if (image.bitmap.width >= 450 || image.bitmap.height >= 350) {
+    if (image.bitmap.width >= 600 || image.bitmap.height >= 350) {
         return true;
     }
     return false;
