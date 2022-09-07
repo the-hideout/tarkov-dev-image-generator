@@ -210,7 +210,7 @@ const createBaseImage = async (image, item) => {
 
 const canCreateInspectImage = async (image) => {
     if (typeof image === 'string') image = await Jimp.read(image);
-    if (image.bitmap.width >= 600 || image.bitmap.height >= 350) {
+    if (image.bitmap.width >= 512 || image.bitmap.height >= 350) {
         return true;
     }
     return false;
@@ -224,11 +224,11 @@ const createInspectImage = async(sourceImage, item) => {
     }
 
     if (!await canCreateInspectImage(sourceImage)) {
-        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough, must be at least 448px wide or tall`);
+        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or 350px tall`);
     }
 
-    if (sourceImage.bitmap.width > 600 || sourceImage.bitmap.height > 350) {
-        sourceImage.scaleToFit(600, 350);
+    if (sourceImage.bitmap.width > 512 || sourceImage.bitmap.height > 350) {
+        sourceImage.scaleToFit(512, 350);
     }
 
     const inspectImage = await Jimp.read(path.join(__dirname, 'background.png'));
@@ -260,7 +260,7 @@ const createLargeImage = async(image, item) => {
     }
 
     if (!await canCreateLargeImage(image)) {
-        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough, must be at least 512px wide or tall`);
+        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or tall`);
     }
 
     if (image.bitmap.width > 512 || image.bitmap.height > 512) {

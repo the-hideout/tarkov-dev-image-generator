@@ -287,7 +287,10 @@ const hashItems = async (options) => {
                 break;
             }
         };
-        console.log(`Found ${missingGridImage} items missing a grid image, ${missingIcon} missing an icon, ${missingBaseImage} missing a base image, ${missingInspectImage} missing a handbhook image`);
+        console.log(`${missingIcon} items missing icon`);
+        console.log(`${missingGridImage} items missing grid image`);
+        console.log(`${missingBaseImage} items missing base image`);
+        console.log(`${missingInspectImage} items missing inspect image`);
     } catch (error) {
         return Promise.reject(error);
     }
