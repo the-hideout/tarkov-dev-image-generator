@@ -220,7 +220,7 @@ const createIcon = async (sourceImage, item) => {
         const buffer = await background.composite([{
             input: sourceImage,
         }]).toBuffer()
-        return sharp(buffer).extract({left: 1, top: 1, width: 62, height: 62});
+        return sharp(buffer);
     });
     return icon.jpeg({quality: 100});
 };
