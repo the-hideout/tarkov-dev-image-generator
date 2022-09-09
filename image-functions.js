@@ -104,6 +104,12 @@ const getSharp = async (input, clone = true) => {
     return sharp(await input.toBuffer());
 }
 
+const getShadow = async (image) => {
+    image = (await Jimp.read(await image.toBuffer()));
+    image.shadow({opacity: 0.8, size: 1, blur: 2, x: 0, y: 0});
+    return sharp(await image.getBufferAsync(Jimp.AUTO));
+};
+
 const getChecks = async (width, height, itemColors) => {
     try {
         const pixels = [];
@@ -200,6 +206,24 @@ const getTextImage = async (metadata, text, fontSize = 12) => {
     return false;
 };
 
+const addImageMeta = (image, item, imageType) => {
+    image.withMetadata({
+        exif: {
+            IFD0: {
+                Software: 'tarkov-dev-image-generator',
+                ID: item.id,
+                Name: item.name,
+                ShortName: item.shortName,
+                ImageType: imageType,
+                XPSubject: item.id,
+                XPTitle: item.name,
+                XPComment: item.shortName,
+                XPKeywords: imageType,
+            }
+        }
+    });
+};
+
 const createIcon = async (sourceImage, item) => {
     const itemColors = colors[item.backgroundColor];
     if (!itemColors){
@@ -215,6 +239,7 @@ const createIcon = async (sourceImage, item) => {
     if (metadata.width !== 64 || metadata.height !== 64) {
         sourceImage = sourceImage.resize(64, 64, {fit: 'inside'});
     }
+    sourceImage = await getShadow(sourceImage);
     sourceImage = await sourceImage.toBuffer();
     const icon = await getChecks(64, 64, itemColors).then(async background => {
         const buffer = await background.composite([{
@@ -222,7 +247,8 @@ const createIcon = async (sourceImage, item) => {
         }]).toBuffer()
         return sharp(buffer);
     });
-    return icon.jpeg({quality: 100});
+    //addImageMeta(icon, item, 'icon');
+    return icon.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
 };
 
 const createGridImage = async (sourceImage, item) => {
@@ -241,6 +267,7 @@ const createGridImage = async (sourceImage, item) => {
         }
         sourceImage = sharp(await sourceImage.resize(gridSize.width, gridSize.height, {fit: 'inside'}).toBuffer());
     }
+    sourceImage = await getShadow(sourceImage);
 
     let gridImage = await getChecks(gridSize.width, gridSize.height, itemColors);
 
@@ -296,7 +323,7 @@ const createGridImage = async (sourceImage, item) => {
         }]);
     }
 
-    return gridImage.jpeg({quality: 100});
+    return gridImage.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
 };
 
 const createBaseImage = async (image, item) => {
