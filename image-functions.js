@@ -426,6 +426,7 @@ const getImageName = (item, imageSize) => {
 
 module.exports = {
     colors: colors,
+    imageSizes: imageSizes,
     createIcon: createIcon,
     createGridImage: createGridImage,
     createBaseImage: createBaseImage,
