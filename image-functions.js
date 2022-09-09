@@ -47,8 +47,8 @@ const colors = {
 
 const imageSizes = {
     icon: {
-        field: 'icon_link',
         append: 'icon',
+        field: 'icon_link',
         format: 'jpg',
     },
     'base-image': {
@@ -76,7 +76,6 @@ const imageSizes = {
         format: 'webp'
     },
 };
-imageSizes.inspect = imageSizes.image;
 
 const imageFormats = {
     jpg: {
