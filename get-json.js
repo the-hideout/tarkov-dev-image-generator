@@ -17,6 +17,7 @@ module.exports = {
             try {
                 if (process.env.API_USERNAME && process.env.API_PASSWORD && process.env.SCANNER_NAME) {
                     items = await api.getJson('items.json').catch(() => { return false; });
+                    console.log('got items from api')
                 }
                 if (!items) {
                     console.log('Downloading SPT item data');

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const dotenv = require("dotenv")
+const dotenv = require('dotenv');
 
 dotenv.config();
 
@@ -139,7 +139,7 @@ const testItems = {
             item: {
                 ...item,
                 needsBaseImage: false,
-                types: ['barter', 'container']
+                types: ['container']
             },
             generateOnlyMissing: true,
             cacheUpdateTimeout: 5000

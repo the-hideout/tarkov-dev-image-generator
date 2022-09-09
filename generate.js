@@ -5,7 +5,7 @@ const path = require('path');
 const process = require('process');
 const EventEmitter = require('events');
 const got = require('got');
-const Jimp = require('jimp-compact');
+const sharp = require('sharp');
 
 const uploadImages = require('./upload-images');
 const hashCalc = require('./hash-calculator');
@@ -28,7 +28,8 @@ const getIcon = async (filename, item, options) => {
     }
 
     const filepath = path.join(options.filePath || iconCacheFolder, filename);
-    const sourceImage = await Jimp.read(filepath);
+    const sourceImage = sharp(filepath);
+    const sourceMeta = await sourceImage.metadata();
 
     if (!options.response.generated[item.id]) options.response.generated[item.id] = [];
     if (!options.response.uploaded[item.id]) options.response.uploaded[item.id] = [];
@@ -39,13 +40,15 @@ const getIcon = async (filename, item, options) => {
         if (options.generateOnlyMissing && !item.needsBaseImage) {
             return resolve(false);
         }
-        resolve(imageFunctions.createBaseImage(sourceImage, item).then(result => {
+        resolve(imageFunctions.createBaseImage(sourceImage, item).then(async baseImage => {
+            const baseImagePath = path.join('./', 'generated-images', `${item.id}-base-image.png`);
+            await baseImage.toFile(baseImagePath);
             options.response.generated[item.id].push('base');
             if (item.needsBaseImage && options.upload){
                 console.log(`${item.id} should be uploaded for base-image`);
                 fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-base-image.png`));
             }
-            return {path: result.path, type: 'base'};
+            return {path: baseImagePath, type: 'base'};
         }));
     });
 
@@ -54,13 +57,15 @@ const getIcon = async (filename, item, options) => {
         if (options.generateOnlyMissing && !item.needsIconImage) {
             return resolve(false);
         }
-        resolve(imageFunctions.createIcon(sourceImage, item).then(result => {
+        resolve(imageFunctions.createIcon(sourceImage, item).then(async iconImage => {
+            const iconPath = path.join('./', 'generated-images', `${item.id}-icon.jpg`);
+            await iconImage.toFile(iconPath);
             options.response.generated[item.id].push('icon');
             if (item.needsIconImage && options.upload) {
                 console.log(`${item.id} should be uploaded for icon`);
-                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`));
+                fs.copyFileSync(iconPath, path.join('./', 'generated-images-missing', `${item.id}-icon.jpg`));
             }
-            return {path: result.path, type: 'icon'};
+            return {path: iconPath, type: 'icon'};
         }));
     });
 
@@ -69,31 +74,15 @@ const getIcon = async (filename, item, options) => {
         if (options.generateOnlyMissing && !item.needsGridImage) {
             return resolve(false);
         }
-        resolve(imageFunctions.createGridImage(sourceImage, item).then(result => {
+        resolve(imageFunctions.createGridImage(sourceImage, item).then(async gridImage => {
+            const gridImagePath = path.join('./', 'generated-images', `${item.id}-grid-image.jpg`);
+            await gridImage.toFile(gridImagePath);
             options.response.generated[item.id].push('grid image');
             if (item.needsGridImage && options.upload) {
                 console.log(`${item.id} should be uploaded for grid-image`);
-                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`));
+                fs.copyFileSync(gridImagePath, path.join('./', 'generated-images-missing', `${item.id}-grid-image.jpg`));
             }
-            return {path: result.path, type: 'grid'};
-        }));
-    });
-
-    // create large image
-    const largeImagePromise = new Promise(resolve => {
-        if (options.generateOnlyMissing && !item.needsLargeImage) {
-            return resolve(false);
-        }
-        resolve(imageFunctions.createLargeImage(sourceImage, item).then(result => {
-            options.response.generated[item.id].push('large image');
-            if (item.needsLargeImage && options.upload) {
-                console.log(`${item.id} should be uploaded for large image`);
-                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-large.png`));
-            }
-            return {path: result.path, type: 'large'};
-        }).catch(error => {
-            console.log(`Error creating large image for ${item.id}`, error);
-            return false;
+            return {path: gridImagePath, type: 'grid'};
         }));
     });
 
@@ -102,19 +91,68 @@ const getIcon = async (filename, item, options) => {
         if (options.generateOnlyMissing && !item.needsInspectImage) {
             return resolve(false);
         }
-        resolve(imageFunctions.createInspectImage(sourceImage, item).then(result => {
+        resolve(imageFunctions.createInspectImage(sourceImage, item).then(async inspectImage => {
+            const inspectImagePath = path.join('./', 'generated-images', `${item.id}-image.jpg`);
+            await inspectImage.toFile(inspectImagePath);
             options.response.generated[item.id].push('inspect image');
-            if (item.needsLargeImage && options.upload) {
+            if (item.needsInspectImage && options.upload) {
                 console.log(`${item.id} should be uploaded for inspect image`);
-                fs.copyFileSync(result.path, path.join('./', 'generated-images-missing', `${item.id}-image.jpg`));
+                fs.copyFileSync(inspectImagePath, path.join('./', 'generated-images-missing', `${item.id}-image.jpg`));
             }
-            return {path: result.path, type: 'image'};
+            return {path: inspectImagePath, type: 'image'};
         }).catch(error => {
             console.log(`Error creating inspect image for ${item.id}`, error);
             return false;
         }));
     });
-    return Promise.all([baseImagePromise, iconPromise, gridImagePromise, largeImagePromise, inspectImagePromise]).then(results => {
+
+    // create 512 image
+    const largeImagePromise = new Promise(async resolve => {
+        if (options.generateOnlyMissing && !item.needs512Image) {
+            return resolve(false);
+        }
+        if (!await imageFunctions.canCreate512Image(sourceMeta)) {
+            return resolve(false);
+        }
+        resolve(imageFunctions.create512Image(sourceImage, item).then(async largeImage => {
+            const largeImagePath = path.join('./', 'generated-images', `${item.id}-512.webp`);
+            await largeImage.toFile(largeImagePath);
+            options.response.generated[item.id].push('512 image');
+            if (item.needs512Image && options.upload) {
+                console.log(`${item.id} should be uploaded for 512 image`);
+                fs.copyFileSync(largeImagePath, path.join('./', 'generated-images-missing', `${item.id}-512.webp`));
+            }
+            return {path: largeImagePath, type: '512'};
+        }).catch(error => {
+            console.log(`Error creating 512 image for ${item.id}`, error);
+            return false;
+        }));
+    });
+
+    //create 8x image
+    const xlImagePromise = new Promise(async resolve => {
+        if (options.generateOnlyMissing && !item.needs8xImage) {
+            return resolve(false);
+        }
+        if (!await imageFunctions.canCreate8xImage(sourceMeta, item)) {
+            return resolve(false);
+        }
+        resolve(imageFunctions.create8xImage(sourceImage, item).then(async xlImage => {
+            const imageFilename = imageFunctions.getImageName(item, '8x');
+            const xlImagePath = path.join('./', 'generated-images', imageFilename);
+            await xlImage.toFile(xlImagePath);
+            options.response.generated[item.id].push('8x image');
+            if (item.needs8xImage && options.upload) {
+                console.log(`${item.id} should be uploaded for 8x image`);
+                fs.copyFileSync(xlImagePath, path.join('./', 'generated-images-missing', imageFilename));
+            }
+            return {path: xlImagePath, type: '8x'};
+        }).catch (error => {
+            console.log(`Error creating 8x image for ${item.id}`, error);
+        }));
+    });
+
+    return Promise.all([baseImagePromise, iconPromise, gridImagePromise, largeImagePromise, inspectImagePromise, xlImagePromise]).then(results => {
         return results.filter(Boolean);
     }).catch(error => {
         console.log(error);
@@ -241,7 +279,6 @@ const hashItems = async (options) => {
             responseType: 'json',
             resolveBodyOnly: true
         });
-        hashCalc.init(bsgData, bsgPresets, presets);
         let missingGridImage = 0;
         let missingIcon = 0;
         let missingBaseImage = 0;
@@ -254,7 +291,8 @@ const hashItems = async (options) => {
             itemData.needsIconImage = false;
             itemData.needsBaseImage = false;
             itemData.needsInspectImage = false;
-            itemData.needsLargeImage = false;
+            itemData.needs512Image = false;
+            itemData.needs8xImage = false;
             if (itemData.gridImageLink.includes('unknown-item')) {
                 itemData.needsGridImage = true;
                 missingGridImage++;
@@ -296,6 +334,63 @@ const hashItems = async (options) => {
     }
 };
 
+const getItemWithHash = async (options) => {
+    let item = false;
+    if (options.targetItemId) {
+        if (!itemsById[options.targetItemId]) {
+            await hashItems(options);
+        }
+        item = itemsById[options.targetItemId];
+    } else {
+        item = options.item;
+        options.targetItemId = item.id;
+        if (!item.backgroundColor) {
+            setBackgroundColor(item);
+        }
+        try {
+            item.hash = hashCalc.getItemHash(item.id);
+            if (!itemsByHash[item.hash.toString()]) {
+                itemsByHash[item.hash.toString()] = item;
+            }
+        } catch (error) {
+            console.log(`Error hashing ${item.id}: ${error}`);
+        }
+    }
+    return item;
+};
+
+const getIconCacheNumberForItem = async (item, options) => {
+    options = {
+        cacheUpdateTimeout: 0,
+        ...options
+    };
+    if ((Array.isArray(item.types) && (item.types.includes('gun') || item.types.includes('preset')))) {
+        return Promise.reject(new Error('Cannot hash weapons and presets'));
+    }
+    const hash = item.hash;
+    if (!hash) return Promise.reject(new Error(`Item ${item.id} has no hash`));
+    if (!iconData[hash]) {
+        await new Promise((resolve, reject) => {
+            const cacheUpdateFunc = () => {
+                if (iconData[hash]) {
+                    clearTimeout(cacheUpdateTimeout);
+                    cacheListener.off(cacheUpdateFunc);
+                    resolve();
+                }
+            };
+            const cacheUpdateTimeout = setTimeout(() => {
+                if (iconData[hash]) {
+                    cacheListener.off(cacheUpdateFunc);
+                    return resolve();
+                }
+                reject(new Error(`Item ${item.id} hash ${hash} not found in cache`));
+            }, options.cacheUpdateTimeout);
+            cacheListener.on('refresh', cacheUpdateFunc);
+        });
+    }
+    return iconData[hash];
+};
+
 const initialize = async (options) => {
     const defaultOptions = {
         skipHashing: false
@@ -311,6 +406,7 @@ const initialize = async (options) => {
     await loadBsgData(opts);
     await loadPresets(opts);
     await loadBsgPresets(opts);
+    hashCalc.init(bsgData, bsgPresets, presets);
     if (!options.skipHashing) {
         await hashItems(opts);
     }
@@ -354,6 +450,7 @@ const generate = async (options, forceImageIndex) => {
     if (!bsgPresets) {
         await loadBsgPresets(options);
     }
+    hashCalc.init(bsgData, bsgPresets, presets);
     if (!cacheIsLoaded()) {
         refreshCache();
     }
@@ -383,47 +480,13 @@ const generate = async (options, forceImageIndex) => {
     }
 
     if (options.targetItemId || options.item) {
-        let item = false;
-        if (options.targetItemId) {
-            if (!itemsById[options.targetItemId]) {
-                await hashItems(options);
-            }
-            item = itemsById[options.targetItemId];
-        } else {
-            item = options.item;
-            options.targetItemId = item.id;
-            if (!item.backgroundColor) {
-                setBackgroundColor(item);
-            }
-            try {
-                hashCalc.init(bsgData, bsgPresets, presets);
-                item.hash = hashCalc.getItemHash(item.id);
-                if (!itemsByHash[item.hash.toString()]) {
-                    itemsByHash[item.hash.toString()] = item;
-                }
-            } catch (error) {
-                console.log(`Error hashing ${item.id}: ${error}`);
-            }
-        }
-        if (!item) return Promise.reject(new Error(`Item ${options.targetItemId} is unknown`));
+        let item = await getItemWithHash(options);
+        if (!item) return Promise.reject(new Error(`Item ${options.targetItemId || options.item.id} is unknown`));
         let fileName = `${options.forceImageIndex}.png`;
         if (!options.forceImageIndex) {
             const hash = item.hash;
-            if (!hash) return Promise.reject(new Error(`Item ${options.targetItemId} has no hash`));
-            if (!iconData[hash]) {
-                try {
-                    if (options.cacheUpdateTimeout === false || (Array.isArray(item.types) && item.types.includes('gun'))) {
-                        throw new Error('not found');
-                    }
-                    await cacheChanged(options.cacheUpdateTimeout);
-                    if (!iconData[hash]) {
-                        throw new Error('not found');
-                    }
-                } catch (error) {
-                    return Promise.reject(new Error(`Item ${options.targetItemId} hash ${hash} not found in cache`));
-                }
-            }
-            fileName = `${iconData[hash]}.png`;
+            if (!hash) return Promise.reject(new Error(`Item ${options.targetItemId || options.item.id} has no hash`));
+            fileName = `${await getIconCacheNumberForItem(item, options)}.png`;
         } 
         try {
             await getIcon(fileName, item, options);
@@ -518,5 +581,17 @@ module.exports = {
         }
     },
     getImagesFromSource: getIcon,
-    imageFunctions: imageFunctions
+    imageFunctions: imageFunctions,
+    getIconCachePath: async (options) => {
+        if (typeof options === 'string') 
+            options = {targetItemId: options};
+        let item = await getItemWithHash(options);
+        if (!item) 
+            return Promise.reject(new Error(`Item ${options.targetItemId || options.item.id} is unknown`));
+        const hash = item.hash;
+        if (!hash) 
+            return Promise.reject(new Error(`Item ${options.targetItemId || options.item.id} has no hash`));
+        const filename = `${await getIconCacheNumberForItem(item, options)}.png`;
+        return path.join(options.filePath || iconCacheFolder, filename);
+    }
 };

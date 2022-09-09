@@ -1,6 +1,8 @@
-const fs = require('fs');
 const path = require('path');
 const Jimp = require('jimp-compact');
+const sharp = require('sharp');
+
+process.env.FONTCONFIG_PATH = path.join(__dirname, 'fonts');
 
 const fonts = {};
 
@@ -43,20 +45,109 @@ const colors = {
     ],
 };
 
-const getChecks = (width, height, itemColors) => {
-    const checks = new Jimp(width, height);
-    checks.scan(0, 0, width, height, function(x, y) {
-        checks.setPixelColor(Jimp.cssColorToHex(itemColors[(x + y) % 2]), x, y);
-    });
-    return checks;
+const imageSizes = {
+    icon: {
+        field: 'icon_link',
+        append: 'icon',
+        format: 'jpg',
+    },
+    'base-image': {
+        append: 'base-image',
+        format: 'png'
+    },
+    'grid-image': {
+        append: 'grid-iamge',
+        field: 'grid_image_link',
+        format: 'jpg'
+    },
+    image: {
+        append: 'image',
+        field: 'image_link',
+        format: 'jpg'
+    },
+    '512': {
+        append: '512',
+        field: '512_image_link',
+        format: 'webp'
+    },
+    '8x': {
+        append: '8x',
+        field: '8x_image_link',
+        format: 'webp'
+    },
+};
+imageSizes.inspect = imageSizes.image;
+
+const imageFormats = {
+    jpg: {
+        contentType: 'image/jpeg',
+    },
+    png: {
+        contentType: 'image/png',
+    },
+    webp: {
+        contentType: 'image/webp',
+    }
+};
+for (const imgSize of Object.values(imageSizes)) {
+    imgSize.contentType = imageFormats[imgSize.format].contentType;
+}
+
+const getSharp = async (input, clone = true) => {
+    if (typeof input === 'string') {
+        return sharp(input);
+    }
+    if (input.constructor.name === 'Jimp') {
+        return sharp.clone();
+    }
+    if (!clone)
+        return input;
+    return sharp(await input.toBuffer());
+}
+
+const getChecks = async (width, height, itemColors) => {
+    try {
+        const pixels = [];
+        let x = 0;
+        let y = 0;
+        while (pixels.length < width * height) {
+            pixels.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="${itemColors[(x + y) % 2]}"/>`);
+            if (x < width -1) {
+                x++;
+            } else {
+                x = 0;
+                y++;
+            }
+        }
+        const checks = Buffer.from(`
+            <svg width="${width}" height="${height}">
+                ${pixels.join('\n')}
+            </svg>
+        `);
+        return sharp(checks).png();
+    } catch (error) {
+        console.log(error);
+        return Promise.reject(error);
+    }
 };
 
-const resizeToGrid = (image, item) => {
+const getItemGridSize = item => {
     if (item.width && item.height) {
-        const properWidth = item.width > 1 ? (item.width * 64) - item.width+1 : 64;
-        const properHeight = item.height > 1 ? (item.height * 64) - item.height+1 : 64;
-        if (image.bitmap.width !== properWidth || image.bitmap.height !== properHeight) {
-            return {width: properWidth, height: properHeight};
+        return {width: (item.width * 63) + 1, height: (item.height * 63) + 1};
+    }
+    return false
+};
+
+const resizeToGrid = async (image, item) => {
+    if (image.constructor.name === 'Sharp') {
+        image = await image.metadata();
+    } else {
+        image = image.bitmap;
+    }
+    const gridSize = getItemGridSize(item);
+    if (gridSize) {
+        if (image.width !== gridSize.width || image.height !== gridSize.height) {
+            return gridSize;
         }
     }
     return false;
@@ -69,19 +160,43 @@ const getFont = async (fontSize = 12) => {
     return fonts[fontSize];
 };
 
-const printText = async (image, text, fontSize = 12) => {
+const getTextImage = async (metadata, text, fontSize = 12) => {
     if (!text) {
         return Promise.reject(new Error('You must provide text to print on the image'));
     }
+    const svgText = `
+        <svg>
+            <style>
+                .name-text {
+                    font-size: ${fontSize}px;
+                    font-family: Bender;
+                    font-weight: bold;
+                    paint-order: stroke;
+                    stroke: #000000;
+                    stroke-width: 2px;
+                    stroke-linecap: butt;
+                    stroke-linejoin: miter;
+                }
+            </style>
+            <text x="0" y="9" fill="#a4aeb4" class="name-text">${text}</text>
+        </svg>
+    `;
+    const textImg = sharp(Buffer.from(svgText)).png();
+    const textMeta = await textImg.metadata();
+    if (textMeta.width <= metadata.width-1) {
+        return textImg;
+    }
+    return false;
     let font = await getFont(fontSize);
     const textWidth = Jimp.measureText(font, text);
-    if (textWidth <= image.bitmap.width-2) {
-        image.print(font, image.bitmap.width-textWidth-2, 2, {
+    if (textWidth <= metadata.width-2) {
+        const image = new Jimp(metadata.width, metadata.height);
+        image.print(font, metadata.width-textWidth-2, 2, {
             text: text,
             alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
             alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
         });
-        return true;
+        return sharp(await image.getBufferAsync(Jimp.MIME_PNG));
     }
     return false;
 };
@@ -92,23 +207,23 @@ const createIcon = async (sourceImage, item) => {
         return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
     }
 
-    if (typeof sourceImage === 'string') {
-        sourceImage = await Jimp.read(sourceImage);
-    } else {
-        sourceImage = sourceImage.clone();
+    sourceImage = await getSharp(sourceImage);
+    const metadata = await sourceImage.metadata();
+
+    if (metadata.width < 64 || metadata.height < 64) {
+        return Promise.reject(new Error(`Source image is ${metadata.width}x${metadata.height}; icon requires at least 64x64`));
     }
-
-    if (sourceImage.bitmap.width < 64 || sourceImage.bitmap.height < 64) {
-        return Promise.reject(new Error(`Source image is ${sourceImage.bitmap.width}x${sourceImage.bitmap.height}; icon requires at least 64x64`));
+    if (metadata.width !== 64 || metadata.height !== 64) {
+        sourceImage = sourceImage.resize(64, 64, {fit: 'inside'});
     }
-
-    const iconImage = getChecks(62, 62, itemColors);
-
-    iconImage.composite(sourceImage.contain(64, 64).crop(1, 1, 62, 62), 0, 0);
-
-    const iconPath = path.join('./', 'generated-images', `${item.id}-icon.jpg`);
-    await iconImage.writeAsync(iconPath);
-    return {path: iconPath, image: iconImage};
+    sourceImage = await sourceImage.toBuffer();
+    const icon = await getChecks(64, 64, itemColors).then(async background => {
+        const buffer = await background.composite([{
+            input: sourceImage,
+        }]).toBuffer()
+        return sharp(buffer).extract({left: 1, top: 1, width: 62, height: 62});
+    });
+    return icon.jpeg({quality: 100});
 };
 
 const createGridImage = async (sourceImage, item) => {
@@ -117,24 +232,20 @@ const createGridImage = async (sourceImage, item) => {
         return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
     }
 
-    if (typeof sourceImage === 'string') {
-        sourceImage = await Jimp.read(sourceImage);
-    } else {
-        sourceImage = sourceImage.clone();
-    }
+    sourceImage = await getSharp(sourceImage);
+    const metadata = await sourceImage.metadata();
 
-    const resize = resizeToGrid(sourceImage, item);
-    if (resize) {
-        //console.log(`Resizing ${item.name} ${item.id} from ${image.bitmap.width}x${image.bitmap.height} to ${resize.width}x${resize.height} for grid image`);
-        if (sourceImage.bitmap.width < resize.width || sourceImage.bitmap.height < resize.height) {
-            return Promise.reject(new Error(`Source image is ${sourceImage.bitmap.width}x${sourceImage.bitmap.height}; grid image requires at least ${resize.width}x${resize.height}`));
+    const gridSize = getItemGridSize(item);
+    if (metadata.width !== gridSize.width || metadata.height !== gridSize.height) {
+        if (metadata.width < gridSize.width || metadata.height < gridSize.height) {
+            return Promise.reject(new Error(`Source image is ${metadata.width}x${metadata.height}; grid image requires at least ${resize.width}x${resize.height}`));
         }
-        sourceImage.scaleToFit(resize.width, resize.height);
+        sourceImage = sharp(await sourceImage.resize(gridSize.width, gridSize.height, {fit: 'inside'}).toBuffer());
     }
 
-    const gridImage = getChecks(sourceImage.bitmap.width, sourceImage.bitmap.height, itemColors);
+    let gridImage = await getChecks(gridSize.width, gridSize.height, itemColors);
 
-    gridImage.composite(sourceImage, 0, 0);
+    gridImage.composite([{input: await sourceImage.png().toBuffer()}]);
 
     let shortName = String(item.shortName);
     if (shortName) {
@@ -148,129 +259,169 @@ const createGridImage = async (sourceImage, item) => {
         console.log(`No shortName for ${JSON.stringify(item)}`);
     }
     if (shortName) {
-        let namePrinted = false;
+        let textImage = false;
         // first we try to add the full shortName in font sized 12-10
-        for (let fontSize = 12; !namePrinted && fontSize > 9; fontSize--) {
-            namePrinted = await printText(gridImage, shortName, fontSize);
+        for (let fontSize = 12; !textImage && fontSize > 9; fontSize--) {
+            textImage = await getTextImage(gridSize, shortName, fontSize);
         }
         // if we haven't pritned the name, try truncating the shortName at the last
         // space or slash, whichever comes later
         let clippedName = shortName;
-        while (!namePrinted && (clippedName.includes('/') || clippedName.includes(' '))) {
+        while (!textImage && (clippedName.includes('/') || clippedName.includes(' '))) {
             const lastSpace = clippedName.lastIndexOf(' ');
             const lastSlash = clippedName.lastIndexOf('/');
             let cutoff = lastSpace;
             if (lastSlash > lastSpace) cutoff = lastSlash;
             if (cutoff == -1) break;
             clippedName = clippedName.substring(0, cutoff);
-            for (let fontSize = 12; fontSize > 10 && !namePrinted; fontSize--) {
-                namePrinted = await printText(gridImage, clippedName, fontSize);
+            for (let fontSize = 12; fontSize > 10 && !textImage; fontSize--) {
+                textImage = await getTextImage(gridSize, clippedName, fontSize);
             }
         }
         // if we still haven't printed the name, drop one letter at a time and try on
         // font sizes 12-10 until something fits
-        while (!namePrinted && clippedName.length > 0) {
+        while (!textImage && clippedName.length > 0) {
             clippedName = clippedName.substring(0, clippedName.length-1);
-            for (let fontSize = 12; fontSize > 10 && !namePrinted; fontSize--) {
-                namePrinted = await printText(gridImage, clippedName, fontSize);
+            for (let fontSize = 12; fontSize > 10 && !textImage; fontSize--) {
+                textImage = await getTextImage(gridSize, clippedName, fontSize);
             }
         }
-        if (!namePrinted) {
+        if (!textImage) {
             return Promise.reject(new Error(`Unable print shortName (${item.shortName}) on grid image for ${item.id}`));
         }
+        const textMeta = await textImage.metadata();
+        gridImage = sharp(await gridImage.toBuffer()).composite([{
+            input: await textImage.toBuffer(),
+            top: 2,
+            left: gridSize.width-textMeta.width-1
+        }]);
     }
 
-    const gridImagePath = path.join('./', 'generated-images', `${item.id}-grid-image.jpg`);
-    await gridImage.writeAsync(gridImagePath);
-
-    return {path: gridImagePath, image: gridImage};
+    return gridImage.jpeg({quality: 100});
 };
 
 const createBaseImage = async (image, item) => {
-    if (typeof image === 'string') {
-        image = await Jimp.read(image);
-    } else {
-        image = image.clone();
-    }
+    image = await getSharp(image);
+    const metadata = await image.metadata();
 
-    const resize = resizeToGrid(image, item);
+    const resize = await resizeToGrid(image, item);
     if (resize) {
-        //console.log(`Resizing ${item.name} ${item.id} from ${image.bitmap.width}x${image.bitmap.height} to ${resize.width}x${resize.height} for base image`);
-        if (image.bitmap.width < resize.width || image.bitmap.height < resize.height) {
-            return Promise.reject(new Error(`Source image is ${image.bitmap.width}x${image.bitmap.height}; base image requires at least ${resize.width}x${resize.height}`));
+        if (metadata.width < resize.width || metadata.height < resize.height) {
+            return Promise.reject(new Error(`Source image is ${metadata.width}x${metadata.height}; base image requires at least ${resize.width}x${resize.height}`));
         }
-        image.scaleToFit(resize.width, resize.height);
+        image.resize(resize.width, resize.height, {fit: 'contain'});
     }
 
-    const baseImagePath = path.join('./', 'generated-images', `${item.id}-base-image.png`);
-    await image.writeAsync(baseImagePath);
-
-    return {path: baseImagePath, image: image};
+    return image.png({compressionLevel: 9});
 };
 
 const canCreateInspectImage = async (image) => {
-    if (typeof image === 'string') image = await Jimp.read(image);
-    if (image.bitmap.width >= 512 || image.bitmap.height >= 350) {
+    if (typeof image === 'string') {
+        image = await (await getSharp(image)).metadata();
+    } else if (typeof image === 'object') {
+        if (image.constructor.name === 'sharp') {
+            image = await image.metadata();
+        } else if (image.constructor.name === 'Jimp') {
+            image = image.bitmap;
+        }
+    }
+    if (image.width >= 512 || image.height >= 350) {
         return true;
     }
     return false;
 };
 
 const createInspectImage = async(sourceImage, item) => {
-    if (typeof sourceImage === 'string') {
-        sourceImage = await Jimp.read(sourceImage)
-    } else {
-        sourceImage = sourceImage.clone();
-    }
+    sourceImage = await getSharp(sourceImage);
+    const metadata = await sourceImage.metadata();
 
-    if (!await canCreateInspectImage(sourceImage)) {
+    if (!await canCreateInspectImage(metadata)) {
         return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or 350px tall`);
     }
 
-    if (sourceImage.bitmap.width > 512 || sourceImage.bitmap.height > 350) {
-        sourceImage.scaleToFit(512, 350);
+    if (metadata.width > 512 || metadata.height > 350) {
+        sourceImage.resize(512, 350, {fit: 'inside'});
     }
 
-    const inspectImage = await Jimp.read(path.join(__dirname, 'background.png'));
+    const inspectImage = sharp(path.join(__dirname, 'background.png'));
 
-    inspectImage.composite(sourceImage, 
-        Math.round(inspectImage.bitmap.width/2)-Math.round(sourceImage.bitmap.width/2), 
-        Math.round(inspectImage.bitmap.height/2)-Math.round(sourceImage.bitmap.height/2)
-    );
+    inspectImage.composite([{input: await sourceImage.toBuffer()}]);
 
-    const inspectImagePath = path.join('./', 'generated-images', `${item.id}-image.jpg`);
-    await inspectImage.writeAsync(inspectImagePath);
-
-    return {path: inspectImagePath, image: inspectImage};
+    return inspectImage.jpeg({quality: 100});
 };
 
-const canCreateLargeImage = async (image) => {
-    if (typeof image === 'string') image = await Jimp.read(image);
-    if (image.bitmap.width >= 512 || image.bitmap.height >= 512) {
+const canCreate512Image = async (image) => {
+    if (typeof image === 'string') {
+        image = await (await getSharp(image)).metadata();
+    } else if (typeof image === 'object') {
+        if (image.constructor.name === 'sharp') {
+            image = await image.metadata();
+        } else if (image.constructor.name === 'Jimp') {
+            image = image.bitmap;
+        }
+    }
+    if (image.width >= 512 || image.height >= 512) {
         return true;
     }
     return false;
 };
 
-const createLargeImage = async(image, item) => {
-    if (typeof image === 'string') {
-        image = await Jimp.read(image)
-    } else {
-        image = image.clone();
-    }
+const create512Image = async (image, item) => {
+    image = await getSharp(image);
+    const metadata = await image.metadata();
 
-    if (!await canCreateLargeImage(image)) {
+    if (!await canCreate512Image(metadata)) {
         return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or tall`);
     }
 
-    if (image.bitmap.width > 512 || image.bitmap.height > 512) {
-        image.scaleToFit(512, 512);
+    if (metadata.width > 512 || metadata.height > 512) {
+        image.resize(512, 512, {fit: 'inside'});
     }
 
-    const largeImagePath = path.join('./', 'generated-images', `${item.id}-large.png`);
-    await image.writeAsync(largeImagePath);
+    return image.webp({lossless: true});
+};
 
-    return {path: largeImagePath, image: image};
+
+const get8xSize = item => {
+    const gridSize = getItemGridSize(item);
+    if (gridSize) {
+        return {width: gridSize.width * 8, height: gridSize.height * 8};
+    }
+    return false;
+};
+
+const canCreate8xImage = async (image, item) => {
+    const targetSize = get8xSize(item);
+    if (typeof image === 'string') {
+        image = await (await getSharp(image)).metadata();
+    } else if (typeof image === 'object') {
+        if (image.constructor.name === 'sharp') {
+            image = await image.metadata();
+        } else if (image.constructor.name === 'Jimp') {
+            image = image.bitmap;
+        }
+    }
+    if (image.width === targetSize.width && image.height === targetSize.height) {
+        return true;
+    }
+    return false;
+};
+
+const create8xImage = async (image, item) => {
+    image = await getSharp(image);
+    const metadata = await image.metadata();
+    if (!canCreate8xImage(image, item)) {
+        const targetSize = get8xSize(item);
+        return Promise.reject(`Source image for ${item.name} ${item.id} is a valid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`);
+    }
+    return image.webp({lossless: true});
+};
+
+const getImageName = (item, imageSize) => {
+    if (!imageSizes[imageSize]) {
+        throw new Error(`${imageSize} is not a valid image size`);
+    }
+    return `${item.id}-${imageSizes[imageSize].append}.${imageSizes[imageSize].format}`;
 };
 
 module.exports = {
@@ -278,8 +429,12 @@ module.exports = {
     createIcon: createIcon,
     createGridImage: createGridImage,
     createBaseImage: createBaseImage,
-    createLargeImage: createLargeImage,
     createInspectImage: createInspectImage,
-    canCreateLargeImage: canCreateLargeImage,
-    canCreateInspectImage: canCreateInspectImage
+    create512Image: create512Image,
+    create8xImage: create8xImage,
+    canCreate512Image: canCreate512Image,
+    canCreateInspectImage: canCreateInspectImage,
+    get8xSize: get8xSize,
+    canCreate8xImage: canCreate8xImage,
+    getImageName: getImageName,
 };

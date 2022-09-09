@@ -4,8 +4,8 @@ const { setTimeout } = require('timers/promises');
 const got = require('got');
 const FormData = require('form-data');
 
-const API_URL = 'https://manager.tarkov.dev/api/scanner';
-//const API_URL = 'http://localhost:4000/api/scanner';
+//const API_URL = 'https://manager.tarkov.dev/api/scanner';
+const API_URL = 'http://localhost:4000/api/scanner';
 
 const sleep = async (ms) => {
     return setTimeout(ms, true).catch(err => {
@@ -96,11 +96,18 @@ module.exports = {
             return Promise.reject(error);
         }
     },
-    submitImage: async(itemId, imageType, filePath) => {
+    submitImage: async (itemId, imageType, filePath) => {
+        let bufferStream = false;
+        filePath = await filePath;
+        if (typeof filePath === 'string') {
+            bufferStream = fs.createReadStream(filePath);
+        } else {
+            bufferStream = filePath;
+        }
         const form = new FormData();
         form.append('id', itemId);
         form.append('type', imageType);
-        form.append(imageType, fs.createReadStream(filePath));
+        form.append(imageType, bufferStream);
 
         return got.post(API_URL + '/image', {
             body: form,
