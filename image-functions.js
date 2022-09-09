@@ -67,12 +67,12 @@ const imageSizes = {
     },
     '512': {
         append: '512',
-        field: '512_image_link',
+        field: 'image_512_link',
         format: 'webp'
     },
     '8x': {
         append: '8x',
-        field: '8x_image_link',
+        field: 'image_8x_link',
         format: 'webp'
     },
 };
