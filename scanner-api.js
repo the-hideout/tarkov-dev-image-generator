@@ -96,7 +96,7 @@ module.exports = {
             return Promise.reject(error);
         }
     },
-    submitImage: async (itemId, imageType, filePath) => {
+    submitImage: async (itemId, imageType, filePath, overwrite = false) => {
         let bufferStream = false;
         filePath = await filePath;
         if (typeof filePath === 'string') {
@@ -108,6 +108,7 @@ module.exports = {
         form.append('id', itemId);
         form.append('type', imageType);
         form.append(imageType, bufferStream);
+        form.append('overwrite', String(overwrite));
 
         return got.post(API_URL + '/image', {
             body: form,

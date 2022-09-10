@@ -1,7 +1,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
-const Jimp = require('jimp-compact');
 const sharp = require('sharp');
+const got = require('got');
 
 dotenv.config();
 
@@ -68,8 +68,9 @@ const getJson = require('./get-json');
         }
         return itemData;
     }).filter(Boolean);
-    
+
     for (const item of items) {
+        console.log(item.name);
         let id = item.id;
         if (item.types.includes('gun')) {
             for (const preset of Object.values(presets)) {
@@ -79,9 +80,7 @@ const getJson = require('./get-json');
                 }
             }
         }
-        const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, `${id}.png`)).catch(error => {
-            return false;
-        });
+        const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, `${id}.png`));
         if (!sourceImage) {
             console.log(`Could not load source image for ${item.name} ${item.id}`);
             continue;
@@ -91,13 +90,13 @@ const getJson = require('./get-json');
             try {
                 await Promise.all([
                     imageFunctions.createInspectImage(sourceImage, item).then(inspectImage => {
-                        return api.submitImage(item.id, 'image', inspectImage.toBuffer());
+                        return api.submitImage(item.id, 'image', inspectImage.toBuffer(), true);
                     }),
                     imageFunctions.create512Image(sourceImage, item).then(largeImage => {
-                        return api.submitImage(item.id, '512', largeImage.toBuffer());
+                        return api.submitImage(item.id, '512', largeImage.toBuffer(), true);
                     }),
                     imageFunctions.create8xImage(sourceImage, item).then(xlImage => {
-                        return api.submitImage(item.id, '8x', xlImage.toBuffer());
+                        return api.submitImage(item.id, '8x', xlImage.toBuffer(), true);
                     }),
                 ]);
                 success = true;
@@ -106,6 +105,5 @@ const getJson = require('./get-json');
                 break;
             }
         }
-        break;
     }
 })();
