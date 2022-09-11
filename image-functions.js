@@ -345,7 +345,7 @@ const canCreateInspectImage = async (image) => {
     if (typeof image === 'string') {
         image = await (await getSharp(image)).metadata();
     } else if (typeof image === 'object') {
-        if (image.constructor.name === 'sharp') {
+        if (image.constructor.name === 'Sharp') {
             image = await image.metadata();
         } else if (image.constructor.name === 'Jimp') {
             image = image.bitmap;
@@ -380,7 +380,7 @@ const canCreate512Image = async (image) => {
     if (typeof image === 'string') {
         image = await (await getSharp(image)).metadata();
     } else if (typeof image === 'object') {
-        if (image.constructor.name === 'sharp') {
+        if (image.constructor.name === 'Sharp') {
             image = await image.metadata();
         } else if (image.constructor.name === 'Jimp') {
             image = image.bitmap;
@@ -421,7 +421,7 @@ const canCreate8xImage = async (image, item) => {
     if (typeof image === 'string') {
         image = await (await getSharp(image)).metadata();
     } else if (typeof image === 'object') {
-        if (image.constructor.name === 'sharp') {
+        if (image.constructor.name === 'Sharp') {
             image = await image.metadata();
         } else if (image.constructor.name === 'Jimp') {
             image = image.bitmap;

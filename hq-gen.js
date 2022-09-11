@@ -30,16 +30,15 @@ const getJson = require('./get-json');
                 width
                 height
                 properties {
-                ...on ItemPropertiesPreset {
-                    baseItem {
-                        id
+                    ...on ItemPropertiesPreset {
+                        baseItem {
+                            id
+                        }
                     }
-                }
-                ...on ItemPropertiesWeapon {
-                    slots {
-                        name
+                    ...on ItemPropertiesWeapon {
+                        defaultWidth
+                        defaultHeight
                     }
-                }
                 }
             }
         }`}),
@@ -79,17 +78,21 @@ const getJson = require('./get-json');
                     break;
                 }
             }
+            item.width = item.properties.defaultWidth;
+            item.height = item.properties.defaultHeight;
         }
         const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, `${id}.png`));
-        if (!sourceImage) {
-            console.log(`Could not load source image for ${item.name} ${item.id}`);
-            continue;
-        }
         let success = false;
         while (!success) {
             try {
                 await Promise.all([
-                    imageFunctions.createInspectImage(sourceImage, item).then(inspectImage => {
+                    /*imageFunctions.createIcon(sourceImage, item).then(iconImage => {
+                        return api.submitImage(item.id, 'icon', iconImage.toBuffer(), true);
+                    }),*/
+                    imageFunctions.createGridImage(sourceImage, item).then(gridImage => {
+                        return api.submitImage(item.id, 'grid-image', gridImage.toBuffer(), true);
+                    }),
+                    /*imageFunctions.createInspectImage(sourceImage, item).then(inspectImage => {
                         return api.submitImage(item.id, 'image', inspectImage.toBuffer(), true);
                     }),
                     imageFunctions.create512Image(sourceImage, item).then(largeImage => {
@@ -97,11 +100,16 @@ const getJson = require('./get-json');
                     }),
                     imageFunctions.create8xImage(sourceImage, item).then(xlImage => {
                         return api.submitImage(item.id, '8x', xlImage.toBuffer(), true);
-                    }),
+                    }),*/
                 ]);
                 success = true;
             } catch (error) {
-                console.log(`Error processing image for ${item.name} ${item.id}`, error);
+                if (error.message.includes('Input file is missing')) {
+                    console.log(`Could not load source image for ${item.name} ${item.id}`);
+                    success = true;
+                    continue;
+                }
+                console.log(`Error processing image for ${item.name} ${item.id}`, error.message);
                 break;
             }
         }
