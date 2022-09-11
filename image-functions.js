@@ -362,7 +362,7 @@ const createInspectImage = async(sourceImage, item) => {
     const metadata = await sourceImage.metadata();
 
     if (!await canCreateInspectImage(metadata)) {
-        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or 350px tall`);
+        return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or 350px tall`));
     }
 
     if (metadata.width > 512 || metadata.height > 350) {
@@ -397,7 +397,7 @@ const create512Image = async (image, item) => {
     const metadata = await image.metadata();
 
     if (!await canCreate512Image(metadata)) {
-        return Promise.reject(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or tall`);
+        return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is not large enough; must be at least 512px wide or tall`));
     }
 
     if (metadata.width > 512 || metadata.height > 512) {
@@ -438,7 +438,7 @@ const create8xImage = async (image, item) => {
     const metadata = await image.metadata();
     if (!canCreate8xImage(image, item)) {
         const targetSize = get8xSize(item);
-        return Promise.reject(`Source image for ${item.name} ${item.id} is a valid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`);
+        return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is a valid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`));
     }
     return image.webp({lossless: true});
 };
