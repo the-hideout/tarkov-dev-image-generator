@@ -16,7 +16,7 @@ const getJson = require('./get-json');
     }
     const foundBaseImages = JSON.parse((await got('https:///manager.tarkov.dev/data/existing-bases.json')).body);
     const presets = await getJson.td_presets();
-    const response = await got.post('https://api.tarkov.dev/graphql', {
+    /*const response = await got.post('https://api.tarkov.dev/graphql', {
         body: JSON.stringify({query: `{
             items {
                 id
@@ -66,7 +66,40 @@ const getJson = require('./get-json');
             itemData.needsInspectImage = true;
         }
         return itemData;
-    }).filter(Boolean);
+    }).filter(Boolean);*/
+    const response = await got.post('https://api.tarkov.dev/graphql', {
+        body: JSON.stringify({query: `{
+            tasks {
+                objectives {
+                    ...on TaskObjectiveQuestItem {
+                        questItem {
+                            id
+                            name
+                            shortName
+                            width
+                            height
+                        }
+                    }
+                }
+            }
+        }`}),
+        responseType: 'json',
+        resolveBodyOnly: true
+    });
+    const items = response.data.tasks.reduce((questItems, task) => {
+        for (const objective of task.objectives) {
+            if (!objective.questItem) {
+                continue;
+            }
+            if (questItems.some(questItem => questItem.id === objective.questItem.id)) {
+                continue;
+            }
+            objective.questItem.types = [];
+            objective.questItem.backgroundColor = 'yellow';
+            questItems.push( objective.questItem);
+        }
+        return questItems;
+    }, []);
 
     for (const item of items) {
         console.log(item.name);
@@ -86,13 +119,16 @@ const getJson = require('./get-json');
         while (!success) {
             try {
                 await Promise.all([
-                    /*imageFunctions.createIcon(sourceImage, item).then(iconImage => {
+                    imageFunctions.createIcon(sourceImage, item).then(iconImage => {
                         return api.submitImage(item.id, 'icon', iconImage.toBuffer(), true);
-                    }),*/
+                    }),
                     imageFunctions.createGridImage(sourceImage, item).then(gridImage => {
                         return api.submitImage(item.id, 'grid-image', gridImage.toBuffer(), true);
                     }),
-                    /*imageFunctions.createInspectImage(sourceImage, item).then(inspectImage => {
+                    imageFunctions.createBaseImage(sourceImage, item).then(baseImage => {
+                        return api.submitImage(item.id, 'base-image', baseImage.toBuffer(), true);
+                    }),
+                    imageFunctions.createInspectImage(sourceImage, item).then(inspectImage => {
                         return api.submitImage(item.id, 'image', inspectImage.toBuffer(), true);
                     }),
                     imageFunctions.create512Image(sourceImage, item).then(largeImage => {
@@ -100,7 +136,7 @@ const getJson = require('./get-json');
                     }),
                     imageFunctions.create8xImage(sourceImage, item).then(xlImage => {
                         return api.submitImage(item.id, '8x', xlImage.toBuffer(), true);
-                    }),*/
+                    }),
                 ]);
                 success = true;
             } catch (error) {
