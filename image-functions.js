@@ -57,7 +57,7 @@ const imageSizes = {
         format: 'png'
     },
     'grid-image': {
-        append: 'grid-iamge',
+        append: 'grid-image',
         field: 'grid_image_link',
         format: 'jpg'
     },
