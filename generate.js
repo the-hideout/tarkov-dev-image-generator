@@ -227,20 +227,11 @@ const setBackgroundColor = (item) => {
 const hashItems = async (options) => {
     defaultOptions = {
         targetItemId: false,
-        foundBaseImages: false
     };
     if (!options) options = {};
     options = {
         ...defaultOptions,
         ...options
-    }
-    let foundBaseImages = options.foundBaseImages;
-    if (!foundBaseImages) {
-        try {
-            foundBaseImages = JSON.parse((await got('https:///manager.tarkov.dev/data/existing-bases.json')).body);
-        } catch (error) {
-            console.log(`Error downloading found base image list: ${error}`);
-        }
     }
     try {
         let queryArgs = '';
@@ -257,6 +248,9 @@ const hashItems = async (options) => {
                   iconLink
                   gridImageLink
                   imageLink
+                  baseImageLink
+                  image512pxLink
+                  image8xLink
                   backgroundColor
                   types
                   width
@@ -302,13 +296,19 @@ const hashItems = async (options) => {
                 itemData.needsIconImage = true;
                 missingIcon++;
             }
-            if (foundBaseImages && !foundBaseImages.includes(itemData.id)) {
+            if (itemData.baseImageLink.includes('unknown-item')) {
                 itemData.needsBaseImage = true;
                 missingBaseImage++;
             }
             if (itemData.imageLink.includes('unknown-item')) {
                 itemData.needsInspectImage = true;
                 missingInspectImage++;
+            }
+            if (itemData.image512pxLink.includes('unknown-item')) {
+                itemData.needs512Image = true;
+            }
+            if (itemData.image8xLink.includes('unknown-item')) {
+                itemData.needs8xImage = true;
             }
             //setBackgroundColor(itemData);
 
