@@ -275,6 +275,9 @@ const createGridImage = async (sourceImage, item) => {
     gridImage.composite([{input: await sourceImage.png().toBuffer()}]);
 
     let shortName = String(item.shortName);
+    if (item.types && item.types.includes('preset')) {
+        shortName = shortName.replace(/ Default$/, '')
+    }
     if (shortName) {
         try {
             shortName = shortName.trim().replace(/\r/g, '').replace(/\n/g, '');
