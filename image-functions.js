@@ -274,13 +274,14 @@ const createGridImage = async (sourceImage, item) => {
 
     gridImage.composite([{input: await sourceImage.png().toBuffer()}]);
 
-    let shortName = String(item.shortName);
-    if (item.types && item.types.includes('preset')) {
-        shortName = shortName.replace(/ Default$/, '')
-    }
-    if (shortName) {
+    let shortName = false;
+    if (item.shortName) {
         try {
-            shortName = shortName.trim().replace(/\r/g, '').replace(/\n/g, '');
+            shortName = String(item.shortName);
+            if (item.types && item.types.includes('preset')) {
+                shortName = shortName.replace(/ (?:Default|По умолчанию|Por defecto|Par défaut|Výchozí|Alapértelmezett)$/, '')
+            }
+            shortName = shortName.replace(/\r/g, '').replace(/\n/g, '').trim();
         } catch (error) {
             console.log(`Error trimming shortName ${shortName} for ${JSON.stringify(item)}`);
             shortName = false;

@@ -7,24 +7,24 @@ dotenv.config();
 
 const imageFunctions = require('./image-functions');
 const api = require('./scanner-api');
-const getJson = require('./get-json');
 
 (async () => {
     if (!process.env.HQ_IMAGE_DIR) {
         console.log('Must set HQ_IMG_DIR env var');
         return;
     }
-    const foundBaseImages = JSON.parse((await got('https:///manager.tarkov.dev/data/existing-bases.json')).body);
-    const presets = await getJson.td_presets();
-    /*const response = await got.post('https://api.tarkov.dev/graphql', {
+    const response = await got.post('https://api.tarkov.dev/graphql', {
         body: JSON.stringify({query: `{
-            items {
+            items(type: preset) {
                 id
                 name
                 shortName
                 iconLink
                 gridImageLink
-                imageLink
+                baseImageLink
+                inspectImageLink
+                image512pxLink
+                image8xLink
                 backgroundColor
                 types
                 width
@@ -36,8 +36,11 @@ const getJson = require('./get-json');
                         }
                     }
                     ...on ItemPropertiesWeapon {
-                        defaultWidth
-                        defaultHeight
+                        defaultPreset {
+                            id
+                            width
+                            height
+                        }
                     }
                 }
             }
@@ -52,67 +55,39 @@ const getJson = require('./get-json');
         itemData.needsIconImage = false;
         itemData.needsBaseImage = false;
         itemData.needsInspectImage = false;
-        itemData.needsLargeImage = false;
+        itemData.needs512pxImage = false;
+        itemData.needs8xImage = false;
         if (itemData.gridImageLink.includes('unknown-item')) {
             itemData.needsGridImage = true;
         }
         if (itemData.iconLink.includes('unknown-item')) {
             itemData.needsIconImage = true;
         }
-        if (!foundBaseImages.includes(itemData.id)) {
+        if (itemData.baseImageLink.includes('unknown-item')) {
             itemData.needsBaseImage = true;
         }
-        if (itemData.imageLink.includes('unknown-item')) {
+        if (itemData.inspectImageLink.includes('unknown-item')) {
             itemData.needsInspectImage = true;
         }
-        return itemData;
-    }).filter(Boolean);*/
-    const response = await got.post('https://api.tarkov.dev/graphql', {
-        body: JSON.stringify({query: `{
-            tasks {
-                objectives {
-                    ...on TaskObjectiveQuestItem {
-                        questItem {
-                            id
-                            name
-                            shortName
-                            width
-                            height
-                        }
-                    }
-                }
-            }
-        }`}),
-        responseType: 'json',
-        resolveBodyOnly: true
-    });
-    const items = response.data.tasks.reduce((questItems, task) => {
-        for (const objective of task.objectives) {
-            if (!objective.questItem) {
-                continue;
-            }
-            if (questItems.some(questItem => questItem.id === objective.questItem.id)) {
-                continue;
-            }
-            objective.questItem.types = [];
-            objective.questItem.backgroundColor = 'yellow';
-            questItems.push( objective.questItem);
+        if (itemData.image512pxLink.includes('unknown-item')) {
+            itemData.needs512pxImage = true;
         }
-        return questItems;
-    }, []);
+        if (itemData.image8xLink.includes('unknown-item')) {
+            itemData.needs8xImage = true;
+        }
+        //if (!itemData.needs8xImage) return false;
+        return itemData;
+    }).filter(Boolean);
 
     for (const item of items) {
         console.log(item.name);
         let id = item.id;
         if (item.types.includes('gun')) {
-            for (const preset of Object.values(presets)) {
-                if (preset.baseId === id && preset.default) {
-                    id = preset.id;
-                    break;
-                }
+            if (item.properties.defaultPreset) {
+                id = item.properties.defaultPreset.id;
+                item.width = item.properties.defaultPreset.width;
+                item.height = item.properties.defaultPreset.height;
             }
-            item.width = item.properties.defaultWidth;
-            item.height = item.properties.defaultHeight;
         }
         const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, `${id}.png`));
         let success = false;
