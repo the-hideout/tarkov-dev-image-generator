@@ -141,7 +141,7 @@ const getItemGridSize = item => {
     if (item.width && item.height) {
         return {width: (item.width * 63) + 1, height: (item.height * 63) + 1};
     }
-    return false
+    return false;
 };
 
 const resizeToGrid = async (image, item) => {
@@ -423,6 +423,9 @@ const get8xSize = item => {
 
 const canCreate8xImage = async (image, item) => {
     const targetSize = get8xSize(item);
+    if (!targetSize) {
+        return false;
+    }
     if (typeof image === 'string') {
         image = await (await getSharp(image)).metadata();
     } else if (typeof image === 'object') {
