@@ -444,7 +444,7 @@ const canCreate8xImage = async (image, item) => {
 const create8xImage = async (image, item) => {
     image = await getSharp(image);
     const metadata = await image.metadata();
-    if (!canCreate8xImage(image, item)) {
+    if (!await canCreate8xImage(image, item)) {
         const targetSize = get8xSize(item);
         return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is a valid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`));
     }
