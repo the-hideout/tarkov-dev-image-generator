@@ -15,7 +15,7 @@ const api = require('./scanner-api');
     }
     const response = await got.post('https://api.tarkov.dev/graphql', {
         body: JSON.stringify({query: `{
-            items(type: preset) {
+            items {
                 id
                 name
                 shortName
@@ -50,7 +50,9 @@ const api = require('./scanner-api');
     });
 
     const items = response.data.items.map(itemData => {
-        if (itemData.types.includes('disabled')) return false;
+        if (itemData.types.includes('disabled')) {
+            return false;
+        }
         itemData.needsGridImage = false;
         itemData.needsIconImage = false;
         itemData.needsBaseImage = false;
@@ -82,13 +84,6 @@ const api = require('./scanner-api');
     for (const item of items) {
         console.log(item.name);
         let id = item.id;
-        if (item.types.includes('gun')) {
-            if (item.properties.defaultPreset) {
-                id = item.properties.defaultPreset.id;
-                item.width = item.properties.defaultPreset.width;
-                item.height = item.properties.defaultPreset.height;
-            }
-        }
         const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, `${id}.png`));
         let success = false;
         while (!success) {
