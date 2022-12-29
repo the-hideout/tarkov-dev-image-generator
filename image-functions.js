@@ -167,6 +167,7 @@ const getFont = async (fontSize = 12) => {
 };
 
 const getTextImage = async (metadata, text, fontSize = 12) => {
+    console.log('getTextImage', text);
     if (!text) {
         return Promise.reject(new Error('You must provide text to print on the image'));
     }
@@ -289,11 +290,11 @@ const createGridImage = async (sourceImage, item) => {
     } else {
         console.log(`No shortName for ${JSON.stringify(item)}`);
     }
-    console.log(shortName);
     if (shortName) {
         let textImage = false;
         // first we try to add the full shortName in font sized 12-10
         for (let fontSize = 12; !textImage && fontSize > 9; fontSize--) {
+            console.log('main func', shortName);
             textImage = await getTextImage(gridSize, shortName, fontSize);
         }
         // if we haven't pritned the name, try truncating the shortName at the last
