@@ -583,8 +583,9 @@ module.exports = {
     getImagesFromSource: getIcon,
     imageFunctions: imageFunctions,
     getIconCachePath: async (options) => {
-        if (typeof options === 'string') 
+        if (typeof options === 'string') {
             options = {targetItemId: options};
+        }
         let item = await getItemWithHash(options);
         if (!item) 
             return Promise.reject(new Error(`Item ${options.targetItemId || options.item.id} is unknown`));

@@ -289,6 +289,7 @@ const createGridImage = async (sourceImage, item) => {
     } else {
         console.log(`No shortName for ${JSON.stringify(item)}`);
     }
+    console.log(shortName);
     if (shortName) {
         let textImage = false;
         // first we try to add the full shortName in font sized 12-10
