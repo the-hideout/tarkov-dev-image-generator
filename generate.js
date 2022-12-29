@@ -374,13 +374,13 @@ const getIconCacheNumberForItem = async (item, options) => {
             const cacheUpdateFunc = () => {
                 if (iconData[hash]) {
                     clearTimeout(cacheUpdateTimeout);
-                    cacheListener.off(cacheUpdateFunc);
+                    cacheListener.off('refresh', cacheUpdateFunc);
                     resolve();
                 }
             };
             const cacheUpdateTimeout = setTimeout(() => {
                 if (iconData[hash]) {
-                    cacheListener.off(cacheUpdateFunc);
+                    cacheListener.off('refresh', cacheUpdateFunc);
                     return resolve();
                 }
                 reject(new Error(`Item ${item.id} hash ${hash} not found in cache`));
