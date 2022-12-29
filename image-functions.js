@@ -137,12 +137,9 @@ const getChecks = async (width, height, itemColors) => {
     }
 };
 
-const getItemGridSize = (item, baseImageMetadata) => {
+const getItemGridSize = (item) => {
     if (item.width && item.height) {
         return {width: (item.width * 63) + 1, height: (item.height * 63) + 1};
-    }
-    if (baseImageMetadata && baseImageMetadata.width && baseImageMetadata.height) {
-        return {width: (baseImageMetadata.width - 1) / 63, height: (baseImageMetadata.height - 1) / 63};
     }
     return false;
 };
@@ -264,8 +261,14 @@ const createGridImage = async (sourceImage, item) => {
     sourceImage = await getSharp(sourceImage);
     const metadata = await sourceImage.metadata();
 
-    const gridSize = getItemGridSize(item, medatada);
-    console.log(gridSize);
+    let gridSize = getItemGridSize(item);
+    if (!gridSize) {
+        console.log('Item size is unspecified; using source image size');
+        gridSize = {
+            width: metadata.width,
+            height: metadata.height,
+        };
+    }
     if (metadata.width !== gridSize.width || metadata.height !== gridSize.height) {
         if (metadata.width < gridSize.width || metadata.height < gridSize.height) {
             return Promise.reject(new Error(`Source image is ${metadata.width}x${metadata.height}; grid image requires at least ${resize.width}x${resize.height}`));
