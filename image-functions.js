@@ -137,9 +137,12 @@ const getChecks = async (width, height, itemColors) => {
     }
 };
 
-const getItemGridSize = item => {
+const getItemGridSize = (item, baseImageMetadata) => {
     if (item.width && item.height) {
         return {width: (item.width * 63) + 1, height: (item.height * 63) + 1};
+    }
+    if (baseImageMetadata && baseImageMetadata.width && baseImageMetadata.height) {
+        return {width: (baseImageMetadata.width - 1) / 63, height: (baseImageMetadata.height - 1) / 63};
     }
     return false;
 };
@@ -167,7 +170,6 @@ const getFont = async (fontSize = 12) => {
 };
 
 const getTextImage = async (metadata, text, fontSize = 12) => {
-    console.log('getTextImage', text);
     if (!text) {
         return Promise.reject(new Error('You must provide text to print on the image'));
     }
@@ -262,7 +264,8 @@ const createGridImage = async (sourceImage, item) => {
     sourceImage = await getSharp(sourceImage);
     const metadata = await sourceImage.metadata();
 
-    const gridSize = getItemGridSize(item);
+    const gridSize = getItemGridSize(item, medatada);
+    console.log(gridSize);
     if (metadata.width !== gridSize.width || metadata.height !== gridSize.height) {
         if (metadata.width < gridSize.width || metadata.height < gridSize.height) {
             return Promise.reject(new Error(`Source image is ${metadata.width}x${metadata.height}; grid image requires at least ${resize.width}x${resize.height}`));
@@ -294,7 +297,6 @@ const createGridImage = async (sourceImage, item) => {
         let textImage = false;
         // first we try to add the full shortName in font sized 12-10
         for (let fontSize = 12; !textImage && fontSize > 9; fontSize--) {
-            console.log('main func', shortName);
             textImage = await getTextImage(gridSize, shortName, fontSize);
         }
         // if we haven't pritned the name, try truncating the shortName at the last
