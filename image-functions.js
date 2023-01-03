@@ -98,7 +98,7 @@ const getSharp = async (input, clone = true) => {
         return sharp(input);
     }
     if (input.constructor.name === 'Jimp') {
-        return sharp.clone();
+        return sharp(await input.getBufferAsync(Jimp.AUTO));
     }
     if (!clone)
         return input;

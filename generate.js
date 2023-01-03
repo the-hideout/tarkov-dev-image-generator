@@ -369,6 +369,9 @@ const getIconCacheNumberForItem = async (item, options) => {
     }
     const hash = item.hash;
     if (!hash) return Promise.reject(new Error(`Item ${item.id} has no hash`));
+    if (!watcher) {
+        refreshCache();
+    }
     if (!iconData[hash]) {
         await new Promise((resolve, reject) => {
             const cacheUpdateFunc = () => {
