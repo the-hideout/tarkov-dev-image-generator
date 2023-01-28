@@ -259,7 +259,7 @@ const createGridImage = async (sourceImage, item) => {
     }
     let gridSize = getItemGridSize(item);
     if (!gridSize) {
-        return Promise.reject(new Error(`Cannot generate grid image; dimensions missing for ${item.name} ${item.id}`));
+        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
     }
 
     sourceImage = await getSharp(sourceImage);
@@ -339,7 +339,7 @@ const createBaseImage = async (image, item) => {
     image = await getSharp(image);
     const metadata = await image.metadata();
     if (!item.width || !item.height) {
-        return Promise.reject(new Error(`Cannot generate base image; dimensions missing for ${item.name} ${item.id}`));
+        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
     }
 
     const resize = await resizeToGrid(image, item);
@@ -450,7 +450,7 @@ const canCreate8xImage = async (image, item) => {
 
 const create8xImage = async (image, item) => {
     if (!item.width || !item.height) {
-        return Promise.reject(new Error(`Cannot generate 8x image; dimensions missing for ${item.name} ${item.id}`));
+        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
     }
     image = await getSharp(image);
     const metadata = await image.metadata();
