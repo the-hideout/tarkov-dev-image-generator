@@ -1,6 +1,6 @@
 {
   "name": "tarkov-dev-image-generator",
-  "version": "2.1.11",
+  "version": "2.1.12",
   "description": "",
   "main": "generate.js",
   "bin": {
