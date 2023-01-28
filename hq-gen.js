@@ -77,9 +77,60 @@ const api = require('./scanner-api');
         if (itemData.image8xLink.includes('unknown-item')) {
             itemData.needs8xImage = true;
         }
-        //if (!itemData.needs8xImage) return false;
+        if (!itemData.needs8xImage) return false;
         return itemData;
     }).filter(Boolean);
+
+    const questItemsResponse = await got.post('https://api.tarkov.dev/graphql', {
+        body: JSON.stringify({query: `{
+            questItems {
+                id
+                name
+                shortName
+                iconLink
+                gridImageLink
+                baseImageLink
+                inspectImageLink
+                image512pxLink
+                image8xLink
+                width
+                height
+            }
+        }`}),
+        responseType: 'json',
+        resolveBodyOnly: true
+    });
+
+    for (const itemData of questItemsResponse.data.questItems) {
+        itemData.types = ['quest'];
+        itemData.backgroundColor = 'yellow';
+        itemData.needsGridImage = false;
+        itemData.needsIconImage = false;
+        itemData.needsBaseImage = false;
+        itemData.needsInspectImage = false;
+        itemData.needs512pxImage = false;
+        itemData.needs8xImage = false;
+        if (itemData.gridImageLink.includes('unknown-item')) {
+            itemData.needsGridImage = true;
+        }
+        if (itemData.iconLink.includes('unknown-item')) {
+            itemData.needsIconImage = true;
+        }
+        if (itemData.baseImageLink.includes('unknown-item')) {
+            itemData.needsBaseImage = true;
+        }
+        if (itemData.inspectImageLink.includes('unknown-item')) {
+            itemData.needsInspectImage = true;
+        }
+        if (itemData.image512pxLink.includes('unknown-item')) {
+            itemData.needs512pxImage = true;
+        }
+        if (itemData.image8xLink.includes('unknown-item')) {
+            itemData.needs8xImage = true;
+        }
+        if (!itemData.needs8xImage) continue;
+        items.push(itemData);
+    }
 
     for (const item of items) {
         console.log(item.name);

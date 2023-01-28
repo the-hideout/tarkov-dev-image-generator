@@ -257,6 +257,9 @@ const createGridImage = async (sourceImage, item) => {
     if (!itemColors){
         return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
     }
+    if (!item.width || !item.height) {
+        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
+    }
 
     sourceImage = await getSharp(sourceImage);
     const metadata = await sourceImage.metadata();
@@ -341,6 +344,9 @@ const createGridImage = async (sourceImage, item) => {
 const createBaseImage = async (image, item) => {
     image = await getSharp(image);
     const metadata = await image.metadata();
+    if (!item.width || !item.height) {
+        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
+    }
 
     const resize = await resizeToGrid(image, item);
     if (resize) {
