@@ -257,21 +257,15 @@ const createGridImage = async (sourceImage, item) => {
     if (!itemColors){
         return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
     }
-    if (!item.width || !item.height) {
-        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
+    let gridSize = getItemGridSize(item);
+    if (!gridSize) {
+        return Promise.reject(new Error(`Cannot generate grid image; dimensions missing for ${item.name} ${item.id}`));
     }
 
     sourceImage = await getSharp(sourceImage);
     const metadata = await sourceImage.metadata();
 
-    let gridSize = getItemGridSize(item);
-    if (!gridSize) {
-        console.log('Item size is unspecified; using source image size');
-        gridSize = {
-            width: metadata.width,
-            height: metadata.height,
-        };
-    }
+
     if (metadata.width !== gridSize.width || metadata.height !== gridSize.height) {
         if (metadata.width < gridSize.width || metadata.height < gridSize.height) {
             return Promise.reject(new Error(`Source image is ${metadata.width}x${metadata.height}; grid image requires at least ${resize.width}x${resize.height}`));
@@ -345,7 +339,7 @@ const createBaseImage = async (image, item) => {
     image = await getSharp(image);
     const metadata = await image.metadata();
     if (!item.width || !item.height) {
-        return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
+        return Promise.reject(new Error(`Cannot generate base image; dimensions missing for ${item.name} ${item.id}`));
     }
 
     const resize = await resizeToGrid(image, item);
@@ -455,11 +449,14 @@ const canCreate8xImage = async (image, item) => {
 };
 
 const create8xImage = async (image, item) => {
+    if (!item.width || !item.height) {
+        return Promise.reject(new Error(`Cannot generate 8x image; dimensions missing for ${item.name} ${item.id}`));
+    }
     image = await getSharp(image);
     const metadata = await image.metadata();
     if (!await canCreate8xImage(image, item)) {
         const targetSize = get8xSize(item);
-        return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is a valid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`));
+        return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is invalid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`));
     }
     return image.webp({lossless: true});
 };
