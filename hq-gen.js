@@ -64,26 +64,30 @@ const cloudflarePurgeLimit = 1000;
         resolveBodyOnly: true
     });
 
-    const items = response.data.items.map(itemData => {
-        if (itemData.types.includes('disabled')) {
-            return false;
-        }
+    let items = [];
+    items.push(...response.data.items);
+    items.push(...response.data.questItems.map(qItem => {
+        qItem.types = ['quest'];
+        qItem.backgroundColor = 'yellow';
+        return qItem;
+    }));
+    items = items.map(itemData => {
         itemData.needsGridImage = false;
         itemData.needsIconImage = false;
         itemData.needsBaseImage = false;
         itemData.needsInspectImage = false;
         itemData.needs512pxImage = false;
         itemData.needs8xImage = false;
-        if (itemData.gridImageLink.includes('unknown-item')) {
+        if (itemData.gridImageLink.includes('.jpg')) {
             itemData.needsGridImage = true;
         }
-        if (itemData.iconLink.includes('unknown-item')) {
+        if (itemData.iconLink.includes('.jpg')) {
             itemData.needsIconImage = true;
         }
-        if (itemData.baseImageLink.includes('unknown-item')) {
+        if (itemData.baseImageLink.includes('.png')) {
             itemData.needsBaseImage = true;
         }
-        if (itemData.inspectImageLink.includes('unknown-item')) {
+        if (itemData.inspectImageLink.includes('.jpg')) {
             itemData.needsInspectImage = true;
         }
         if (itemData.image512pxLink.includes('unknown-item')) {
@@ -96,40 +100,10 @@ const cloudflarePurgeLimit = 1000;
         return itemData;
     }).filter(Boolean);
 
-    for (const itemData of response.data.questItems) {
-        itemData.types = ['quest'];
-        itemData.backgroundColor = 'yellow';
-        itemData.needsGridImage = false;
-        itemData.needsIconImage = false;
-        itemData.needsBaseImage = false;
-        itemData.needsInspectImage = false;
-        itemData.needs512pxImage = false;
-        itemData.needs8xImage = false;
-        if (itemData.gridImageLink.includes('unknown-item')) {
-            itemData.needsGridImage = true;
-        }
-        if (itemData.iconLink.includes('unknown-item')) {
-            itemData.needsIconImage = true;
-        }
-        if (itemData.baseImageLink.includes('unknown-item')) {
-            itemData.needsBaseImage = true;
-        }
-        if (itemData.inspectImageLink.includes('unknown-item')) {
-            itemData.needsInspectImage = true;
-        }
-        if (itemData.image512pxLink.includes('unknown-item')) {
-            itemData.needs512pxImage = true;
-        }
-        if (itemData.image8xLink.includes('unknown-item')) {
-            itemData.needs8xImage = true;
-        }
-        //if (!itemData.needs8xImage) continue;
-        items.push(itemData);
-    }
-
     let purgeCount = 0;
-    for (const item of items) {
-        console.log(item.name);
+    for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        console.log(`${index+1}/${items.length} ${item.name}`);
         let id = item.id;
         const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, `${id}.png`));
         /*await Promise.all([
@@ -163,46 +137,59 @@ const cloudflarePurgeLimit = 1000;
                 });
             }
             try {
-                const uploadResults = await Promise.all([
+                const uploadResults = await Promise.allSettled([
                     imageFunctions.createIcon(sourceImage, item).then(iconImage => {
                         return api.submitImage(item.id, 'icon', iconImage.toBuffer(), true).then(response => {
-                            purgeCount++;
+                            if (response.data[0].purged) {
+                                purgeCount++;
+                            }
                             return response;
                         });
                     }),
                     imageFunctions.createGridImage(sourceImage, item).then(gridImage => {
                         return api.submitImage(item.id, 'grid-image', gridImage.toBuffer(), true).then(response => {
-                            purgeCount++;
+                            if (response.data[0].purged) {
+                                purgeCount++;
+                            }
                             return response;
                         });
                     }),
                     imageFunctions.createBaseImage(sourceImage, item).then(baseImage => {
                         return api.submitImage(item.id, 'base-image', baseImage.toBuffer(), true).then(response => {
-                            purgeCount++;
+                            if (response.data[0].purged) {
+                                purgeCount++;
+                            }
                             return response;
                         });
                     }),
                     imageFunctions.createInspectImage(sourceImage, item).then(inspectImage => {
                         return api.submitImage(item.id, 'image', inspectImage.toBuffer(), true).then(response => {
-                            purgeCount++;
+                            if (response.data[0].purged) {
+                                purgeCount++;
+                            }
                             return response;
                         });
                     }),
                     /*imageFunctions.create512Image(sourceImage, item).then(largeImage => {
                         return api.submitImage(item.id, '512', largeImage.toBuffer(), true).then(response => {
-                            purgeCount++;
+                            if (response.purged) {
+                                purgeCount++;
+                            }
                             return response;
                         });
                     }),
                     imageFunctions.create8xImage(sourceImage, item).then(xlImage => {
                         return api.submitImage(item.id, '8x', xlImage.toBuffer(), true).then(response => {
-                            purgeCount++;
+                            if (response.purged) {
+                                purgeCount++;
+                            }
                             return response;
                         });
                     }),*/
                 ]);
                 for (const result of uploadResults) {
                     if (result.status === 'rejected') {
+                        console.log(result);
                         throw result.reason;
                     }
                 }
@@ -213,9 +200,9 @@ const cloudflarePurgeLimit = 1000;
                     success = true;
                     continue;
                 }
-                console.log(`Error processing image for ${item.name} ${item.id}`, error.message);
+                console.log(`Error processing image for ${item.name} ${item.id}`, error);
                 console.log('Cloudflare purge count:', purgeCount);
-                break;
+                //break;
             }
         }
     }

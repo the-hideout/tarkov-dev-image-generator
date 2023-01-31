@@ -1,6 +1,8 @@
 const path = require('path');
+
 const Jimp = require('jimp-compact');
 const sharp = require('sharp');
+const htmlEntities = require('html-entities');
 
 process.env.FONTCONFIG_PATH = path.join(__dirname, 'fonts');
 
@@ -165,7 +167,7 @@ const getTextImage = async (metadata, text, fontSize = 12) => {
                     stroke-linejoin: miter;
                 }
             </style>
-            <text x="0" y="9" fill="#a4aeb4" class="name-text">${text}</text>
+            <text x="0" y="9" fill="#a4aeb4" class="name-text">${htmlEntities.encode(text)}</text>
         </svg>
     `;
     const textImg = sharp(Buffer.from(svgText)).png();
@@ -263,7 +265,6 @@ const createGridImage = async (sourceImage, item) => {
 
     sourceImage = await getSharp(sourceImage);
     const metadata = await sourceImage.metadata();
-
 
     if (metadata.width !== gridSize.width || metadata.height !== gridSize.height) {
         if (metadata.width < gridSize.width || metadata.height < gridSize.height) {
