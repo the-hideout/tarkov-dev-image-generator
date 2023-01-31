@@ -7,64 +7,37 @@ process.env.FONTCONFIG_PATH = path.join(__dirname, 'fonts');
 const fonts = {};
 
 const colors = {
-    violet: [
-        '#271d2a',
-        '#2c232f',
-    ],
-    grey: [
-        '#191a1a',
-        '#1e1e1e',
-    ],
-    yellow: [
-        '#2f301d',
-        '#343421',
-    ],
-    orange: [
-        '#221611',
-        '#261d14',
-    ],
-    green: [
-        '#161c11',
-        '#1a2314',
-    ],
-    red: [
-        '#311c18',
-        '#38221f',
-    ],
-    default: [
-        '#363537',
-        '#3a3c3b',
-    ],
-    black: [
-        '#100f11',
-        '#141614',
-    ],
-    blue: [
-        '#1d262f',
-        '#202d32',
-    ],
+    black: {r: 0, g: 0, b: 0, alpha: 77/255},
+    blue: {r: 28, g: 65, b: 86, alpha: 77/255},
+    default: {r: 127, g: 127, b: 127, alpha: 77/255},
+    green: {r: 21, g: 45, b: 0, alpha: 77/255},
+    grey: {r: 29, g: 29, b: 29, alpha: 77/255},
+    orange: {r: 60, g: 25, b: 0, alpha: 77/255},
+    red: {r: 109, g: 36, b: 24, alpha: 77/255},
+    violet: {r: 76, g: 42, b: 85, alpha: 77/255},
+    yellow: {r: 104, g: 102, b: 40, alpha: 77/255},
 };
 
 const imageSizes = {
     icon: {
         append: 'icon',
         field: 'icon_link',
-        format: 'jpg',
+        format: 'webp',
     },
     'base-image': {
         append: 'base-image',
         field: 'base_image_link',
-        format: 'png'
+        format: 'webp'
     },
     'grid-image': {
         append: 'grid-image',
         field: 'grid_image_link',
-        format: 'jpg'
+        format: 'webp'
     },
     image: {
         append: 'image',
         field: 'image_link',
-        format: 'jpg'
+        format: 'webp'
     },
     '512': {
         append: '512',
@@ -74,7 +47,8 @@ const imageSizes = {
     '8x': {
         append: '8x',
         field: 'image_8x_link',
-        format: 'webp'
+        format: 'webp',
+        formatOptions: {lossless: true},
     },
 };
 
@@ -111,30 +85,37 @@ const getShadow = async (image) => {
     return sharp(await image.getBufferAsync(Jimp.AUTO));
 };
 
-const getChecks = async (width, height, itemColors) => {
-    try {
-        const pixels = [];
-        let x = 0;
-        let y = 0;
-        while (pixels.length < width * height) {
-            pixels.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="${itemColors[(x + y) % 2]}"/>`);
-            if (x < width -1) {
-                x++;
-            } else {
-                x = 0;
-                y++;
-            }
-        }
-        const checks = Buffer.from(`
-            <svg width="${width}" height="${height}">
-                ${pixels.join('\n')}
-            </svg>
-        `);
-        return sharp(checks).png();
-    } catch (error) {
-        console.log(error);
-        return Promise.reject(error);
+const getChecks = async (width, height, itemBackgroundColor) => {
+    const itemColor = colors[itemBackgroundColor];
+    if (!itemColor){
+        return Promise.reject(new Error(`No background color found for ${itemBackgroundColor}`));
     }
+    let canvas = sharp({create: {
+        width: width,
+        height: height,
+        channels: 4,
+        background: {r: 0, g: 0, b: 0, alpha: 1},
+    }}).png();
+    let background = sharp({create: {
+        width: width,
+        height: height,
+        channels: 4,
+        background: itemColor
+    }}).png();
+    canvas = await canvas.composite([
+        {
+            input: await sharp(path.join(__dirname, 'grid_cell.png')).toBuffer(),
+            tile: true,
+            gravity: 'southwest',
+        },
+        {
+            input: await background.toBuffer()
+        }
+    ]).toBuffer();
+    canvas = sharp(canvas);
+    canvas.extract({left: 1, top: 1, width: width - 2, height: height - 2});
+    canvas.extend({top: 1, right: 1, bottom: 1, left: 1, background: {r: 73, g: 81, b: 84, alpha: 1}});
+    return canvas.png();
 };
 
 const getItemGridSize = (item) => {
@@ -225,12 +206,34 @@ const addImageMeta = (image, item, imageType) => {
     });
 };
 
-const createIcon = async (sourceImage, item) => {
-    const itemColors = colors[item.backgroundColor];
-    if (!itemColors){
-        return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
+const outputFormat = (image, imageType, item) => {
+    const size = imageSizes[imageType];
+    if (!size) {
+        return Promise.reject(new Error(`${imageType} is not a valid image type`));
     }
+    if (item) {
+        addImageMeta(image, item, imageType);
+    }
+    const defaultFormatOptions = {
+        jpg: {quality: 100, chromaSubsampling: '4:4:4'},
+        png: {compressionLevel: 9},
+        webp: {lossless: true},
+    };
+    const format = size.format;
+    const arguments = size.formatOptions || defaultFormatOptions[format];
+    if (format === 'jpg') {
+        return image.jpeg(arguments);
+    }
+    if (format === 'png') {
+        return image.png(arguments);
+    }
+    if (format === 'webp') {
+        return image.webp(arguments);
+    }
+    return Promise.reject(new Error(`Unrecognized image format: ${format}`));
+};
 
+const createIcon = async (sourceImage, item) => {
     sourceImage = await getSharp(sourceImage);
     const metadata = await sourceImage.metadata();
 
@@ -242,21 +245,17 @@ const createIcon = async (sourceImage, item) => {
     }
     sourceImage = await getShadow(sourceImage);
     sourceImage = await sourceImage.toBuffer();
-    const icon = await getChecks(64, 64, itemColors).then(async background => {
+    const icon = await getChecks(64, 64, item.backgroundColor).then(async background => {
         const buffer = await background.composite([{
             input: sourceImage,
         }]).toBuffer()
         return sharp(buffer);
     });
-    //addImageMeta(icon, item, 'icon');
-    return icon.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
+    //return icon.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
+    return outputFormat(icon, 'icon');
 };
 
 const createGridImage = async (sourceImage, item) => {
-    const itemColors = colors[item.backgroundColor];
-    if (!itemColors){
-        return Promise.reject(new Error(`No colors found for ${item.name} ${item.id}`));
-    }
     let gridSize = getItemGridSize(item);
     if (!gridSize) {
         return Promise.reject(new Error(`Dimensions missing for ${item.name} ${item.id}`));
@@ -274,7 +273,7 @@ const createGridImage = async (sourceImage, item) => {
     }
     sourceImage = await getShadow(sourceImage);
 
-    let gridImage = await getChecks(gridSize.width, gridSize.height, itemColors);
+    let gridImage = await getChecks(gridSize.width, gridSize.height, item.backgroundColor);
 
     gridImage.composite([{input: await sourceImage.png().toBuffer()}]);
 
@@ -327,12 +326,13 @@ const createGridImage = async (sourceImage, item) => {
         const textMeta = await textImage.metadata();
         gridImage = sharp(await gridImage.toBuffer()).composite([{
             input: await textImage.toBuffer(),
-            top: 2,
+            top: 4,
             left: gridSize.width-textMeta.width-1
         }]);
     }
 
-    return gridImage.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
+    //return gridImage.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
+    return outputFormat(gridImage, 'grid-image');
 };
 
 const createBaseImage = async (image, item) => {
@@ -350,7 +350,8 @@ const createBaseImage = async (image, item) => {
         image.resize(resize.width, resize.height, {fit: 'contain'});
     }
 
-    return image.png({compressionLevel: 9});
+    //return image.png({compressionLevel: 9});
+    return outputFormat(image, 'base-image');
 };
 
 const canCreateInspectImage = async (image) => {
@@ -385,7 +386,8 @@ const createInspectImage = async(sourceImage, item) => {
 
     inspectImage.composite([{input: await sourceImage.toBuffer()}]);
 
-    return inspectImage.jpeg({quality: 100});
+    //return inspectImage.jpeg({quality: 100});
+    return outputFormat(inspectImage, 'image');
 };
 
 const canCreate512Image = async (image) => {
@@ -416,7 +418,8 @@ const create512Image = async (image, item) => {
         image.resize(512, 512, {fit: 'inside'});
     }
 
-    return image.webp({lossless: true});
+    //return image.webp({lossless: true});
+    return outputFormat(image, '512');
 };
 
 
@@ -458,7 +461,8 @@ const create8xImage = async (image, item) => {
         const targetSize = get8xSize(item);
         return Promise.reject(new Error(`Source image for ${item.name} ${item.id} is invalid for 8x; it is ${metadata.width}x${metadata.height} but must be ${targetSize.width}x${targetSize.height}`));
     }
-    return image.webp({lossless: true});
+    //return image.webp({lossless: true});
+    return outputFormat(image, '8x');
 };
 
 const getImageName = (item, imageSize) => {
