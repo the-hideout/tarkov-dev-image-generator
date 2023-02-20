@@ -6,8 +6,6 @@ const htmlEntities = require('html-entities');
 
 process.env.FONTCONFIG_PATH = path.join(__dirname, 'fonts');
 
-const fonts = {};
-
 const colors = {
     black: {r: 0, g: 0, b: 0, alpha: 77/255},
     blue: {r: 28, g: 65, b: 86, alpha: 77/255},
@@ -115,6 +113,16 @@ const getChecks = async (width, height, itemBackgroundColor) => {
         }
     ]).toBuffer();
     canvas = sharp(canvas);
+    return canvas.png();
+};
+
+const getBorder = async (width, height) => {
+    const canvas = sharp({create: {
+        width: width,
+        height: height,
+        channels: 4,
+        background: {r: 0, g: 0, b: 0, alpha: 0},
+    }});
     canvas.extract({left: 1, top: 1, width: width - 2, height: height - 2});
     canvas.extend({top: 1, right: 1, bottom: 1, left: 1, background: {r: 73, g: 81, b: 84, alpha: 1}});
     return canvas.png();
@@ -142,13 +150,6 @@ const resizeToGrid = async (image, item) => {
     return false;
 };
 
-const getFont = async (fontSize = 12) => {
-    if (!fonts[fontSize]) {
-        fonts[fontSize] = await Jimp.loadFont(path.join(__dirname, 'fonts', `Bender-Bold-${fontSize}.fnt`));
-    }
-    return fonts[fontSize];
-};
-
 const getTextImage = async (metadata, text, fontSize = 12) => {
     if (!text) {
         return Promise.reject(new Error('You must provide text to print on the image'));
@@ -174,18 +175,6 @@ const getTextImage = async (metadata, text, fontSize = 12) => {
     const textMeta = await textImg.metadata();
     if (textMeta.width <= metadata.width-1) {
         return textImg;
-    }
-    return false;
-    let font = await getFont(fontSize);
-    const textWidth = Jimp.measureText(font, text);
-    if (textWidth <= metadata.width-2) {
-        const image = new Jimp(metadata.width, metadata.height);
-        image.print(font, metadata.width-textWidth-2, 2, {
-            text: text,
-            alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,
-            alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
-        });
-        return sharp(await image.getBufferAsync(Jimp.MIME_PNG));
     }
     return false;
 };
@@ -250,7 +239,12 @@ const createIcon = async (sourceImage, item) => {
     const icon = await getChecks(64, 64, item.backgroundColor).then(async background => {
         const buffer = await background.composite([{
             input: sourceImage,
-        }]).toBuffer()
+        }]).toBuffer();
+        return sharp(buffer);
+    }).then(async withItemImage => {
+        const buffer = await withItemImage.composite([{
+            input: await (await getBorder(64, 64)).toBuffer(),
+        }]).toBuffer();
         return sharp(buffer);
     });
     //return icon.jpeg({quality: 100, chromaSubsampling: '4:4:4'});
@@ -273,10 +267,19 @@ const createGridImage = async (sourceImage, item) => {
         sourceImage = sharp(await sourceImage.resize(gridSize.width, gridSize.height, {fit: 'inside'}).toBuffer());
     }
     sourceImage = await getShadow(sourceImage);
+    sourceImage = await sourceImage.toBuffer();
 
-    let gridImage = await getChecks(gridSize.width, gridSize.height, item.backgroundColor);
-
-    gridImage.composite([{input: await sourceImage.png().toBuffer()}]);
+    let gridImage = await getChecks(gridSize.width, gridSize.height, item.backgroundColor).then(async background => {
+        const buffer = await background.composite([{
+            input: sourceImage,
+        }]).toBuffer();
+        return sharp(buffer);
+    }).then(async withItemImage => {
+        const buffer = await withItemImage.composite([{
+            input: await (await getBorder(gridSize.width, gridSize.height)).toBuffer(),
+        }]).toBuffer();
+        return sharp(buffer);
+    });
 
     let shortName = false;
     if (item.shortName) {

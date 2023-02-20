@@ -154,7 +154,7 @@ const cloudflarePurgeLimit = 1000;
                             return response;
                         });
                     }),
-                    imageFunctions.createBaseImage(sourceImage, item).then(baseImage => {
+                    /*imageFunctions.createBaseImage(sourceImage, item).then(baseImage => {
                         return api.submitImage(item.id, 'base-image', baseImage.toBuffer(), true).then(response => {
                             if (response.data[0].purged) {
                                 purgeCount++;
@@ -170,7 +170,7 @@ const cloudflarePurgeLimit = 1000;
                             return response;
                         });
                     }),
-                    /*imageFunctions.create512Image(sourceImage, item).then(largeImage => {
+                    imageFunctions.create512Image(sourceImage, item).then(largeImage => {
                         return api.submitImage(item.id, '512', largeImage.toBuffer(), true).then(response => {
                             if (response.purged) {
                                 purgeCount++;
