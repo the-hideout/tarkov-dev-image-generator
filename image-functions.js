@@ -80,7 +80,7 @@ const getSharp = async (input, clone = true) => {
 }
 
 const getShadow = async (image) => {
-    image = (await Jimp.read(await image.toBuffer()));
+    image = (await Jimp.read(await image.png().toBuffer()));
     image.shadow({opacity: 0.8, size: 1, blur: 2, x: 0, y: 0});
     return sharp(await image.getBufferAsync(Jimp.AUTO));
 };
