@@ -540,6 +540,7 @@ const watchIconCacheFolder = () => {
         watcher = false;
         watchIconCacheFolderReady();
     });
+    refreshCache();
 };
 
 let readyWatcher = false;
@@ -547,7 +548,7 @@ const watchIconCacheFolderReady = () => {
     if (readyWatcher) readyWatcher.close();
     const bsgTemp = process.env.LOCALAPPDATA+'\\Temp\\Battlestate Games';
     readyWatcher = fs.watch(bsgTemp, {persistent: false, recursive: true}, (eventType, filename) => {
-        console.log(`${eventType} ${filename}`);
+        //console.log(`${eventType} ${filename}`);
         if (filename === 'EscapeFromTarkov\\Icon Cache\\live\\index.json') {
             watchIconCacheFolder();
             readyWatcher.close();
