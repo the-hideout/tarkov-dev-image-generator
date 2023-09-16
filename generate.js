@@ -572,6 +572,7 @@ const startWatcher = () => {
 module.exports = {
     initializeImageGenerator: initialize,
     generateImages: generate,
+    cacheListener: cacheListener,
     startWatchingCache: startWatcher,
     stopWatchingCache: () => {
         if (watcher) {

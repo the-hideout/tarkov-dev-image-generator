@@ -23,32 +23,38 @@ const imageSizes = {
         append: 'icon',
         field: 'icon_link',
         format: 'webp',
+        api: 'iconLink',
     },
     'base-image': {
         append: 'base-image',
         field: 'base_image_link',
-        format: 'webp'
+        format: 'webp',
+        api: 'baseImageLink'
     },
     'grid-image': {
         append: 'grid-image',
         field: 'grid_image_link',
-        format: 'webp'
+        format: 'webp',
+        api: 'gridImageLink',
     },
     image: {
         append: 'image',
         field: 'image_link',
-        format: 'webp'
+        format: 'webp',
+        api: 'inspectImageLink',
     },
     '512': {
         append: '512',
         field: 'image_512_link',
-        format: 'webp'
+        format: 'webp',
+        api: 'image512pxLink',
     },
     '8x': {
         append: '8x',
         field: 'image_8x_link',
         format: 'webp',
         formatOptions: {lossless: true},
+        api: 'image8xLink',
     },
 };
 

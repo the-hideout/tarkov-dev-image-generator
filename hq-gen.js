@@ -15,6 +15,10 @@ const cloudflarePurgeLimit = 1000;
         console.log('Must set HQ_IMG_DIR env var');
         return;
     }
+    const imageFields = [];
+    for (const imageType in imageFunctions.imageSizes) {
+        imageFields.push(imageFunctions.imageSizes[imageType].api);
+    }
     const response = await got.post('https://api.tarkov.dev/graphql', {
         body: JSON.stringify({query: `{
             items {
@@ -72,22 +76,28 @@ const cloudflarePurgeLimit = 1000;
         return qItem;
     }));
     items = items.map(itemData => {
-        itemData.needsGridImage = false;
+        /*for (const imageField of imageFields) {
+            if (itemData[imageField].includes('unknown-item')) {
+                return itemData;
+            }
+        }
+        return false;*/
+        /*itemData.needsGridImage = false;
         itemData.needsIconImage = false;
         itemData.needsBaseImage = false;
         itemData.needsInspectImage = false;
         itemData.needs512pxImage = false;
         itemData.needs8xImage = false;
-        if (itemData.gridImageLink.includes('.jpg')) {
+        if (itemData.gridImageLink.includes('unknown-item')) {
             itemData.needsGridImage = true;
         }
-        if (itemData.iconLink.includes('.jpg')) {
+        if (itemData.iconLink.includes('unknown-item')) {
             itemData.needsIconImage = true;
         }
-        if (itemData.baseImageLink.includes('.png')) {
+        if (itemData.baseImageLink.includes('unknown-item')) {
             itemData.needsBaseImage = true;
         }
-        if (itemData.inspectImageLink.includes('.jpg')) {
+        if (itemData.inspectImageLink.includes('unknown-item')) {
             itemData.needsInspectImage = true;
         }
         if (itemData.image512pxLink.includes('unknown-item')) {
@@ -95,7 +105,7 @@ const cloudflarePurgeLimit = 1000;
         }
         if (itemData.image8xLink.includes('unknown-item')) {
             itemData.needs8xImage = true;
-        }
+        }*/
         //if (!itemData.needs8xImage) return false;
         return itemData;
     }).filter(Boolean);
@@ -154,7 +164,7 @@ const cloudflarePurgeLimit = 1000;
                             return response;
                         });
                     }),
-                    /*imageFunctions.createBaseImage(sourceImage, item).then(baseImage => {
+                    imageFunctions.createBaseImage(sourceImage, item).then(baseImage => {
                         return api.submitImage(item.id, 'base-image', baseImage.toBuffer(), true).then(response => {
                             if (response.data[0].purged) {
                                 purgeCount++;
@@ -185,7 +195,7 @@ const cloudflarePurgeLimit = 1000;
                             }
                             return response;
                         });
-                    }),*/
+                    }),
                 ]);
                 for (const result of uploadResults) {
                     if (result.status === 'rejected') {
