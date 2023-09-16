@@ -162,7 +162,7 @@ const getIcon = async (filename, item, options) => {
 const cacheListener = new EventEmitter();
 const refreshCache = () => {
     iconData = JSON.parse(fs.readFileSync(iconCacheFolder+'index.json', 'utf8'));
-    cacheListener.emit('refresh');
+    cacheListener.emit('refresh', iconData);
 };
 
 const cacheChanged = (timeoutMs) => {
@@ -574,7 +574,9 @@ module.exports = {
     initializeImageGenerator: initialize,
     generateImages: generate,
     cacheListener: cacheListener,
-    iconCacheIndex: iconData,
+    getIconCacheIndex: () => {
+        return iconData
+    },
     startWatchingCache: startWatcher,
     stopWatchingCache: () => {
         if (watcher) {
