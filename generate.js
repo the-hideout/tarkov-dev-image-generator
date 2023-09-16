@@ -531,7 +531,7 @@ const watchIconCacheFolder = () => {
             try {
                 refreshCache();
             } catch (error) {
-                console.log('Icon cache is missing');
+                //console.log('Icon cache is missing');
             }
         }
     });
@@ -561,7 +561,7 @@ const startWatcher = () => {
     try {
         refreshCache();
     } catch (error) {
-        console.log('Icon cache is missing');
+        //console.log('Icon cache is missing');
     }
     try {
         watchIconCacheFolder();
