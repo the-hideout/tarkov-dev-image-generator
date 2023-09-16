@@ -573,6 +573,7 @@ module.exports = {
     initializeImageGenerator: initialize,
     generateImages: generate,
     cacheListener: cacheListener,
+    iconCacheIndex: iconData,
     startWatchingCache: startWatcher,
     stopWatchingCache: () => {
         if (watcher) {
