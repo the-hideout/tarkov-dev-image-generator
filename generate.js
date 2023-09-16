@@ -577,6 +577,24 @@ module.exports = {
     getIconCacheIndex: () => {
         return iconData
     },
+    waitForHash: async (hash) => {
+        if (!iconData[hash]) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const checkCache = (ci) => {
+                        if (ci[hash]) {
+                            cacheListener.off('refresh', checkCache);
+                            return resolve(ci[hash]);
+                        }
+                    };
+                    cacheListener.on('refresh', checkCache);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+        return iconData[hash];
+    },
     startWatchingCache: startWatcher,
     stopWatchingCache: () => {
         if (watcher) {
