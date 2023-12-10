@@ -14,14 +14,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@jimp/plugin-shadow": "^0.16.1",
-    "dotenv": "^16.0.0",
+    "@jimp/plugin-shadow": "^0.22.10",
+    "dotenv": "^16.3.1",
     "form-data": "^4.0.0",
     "got": "^11.8.2",
-    "html-entities": "^2.3.3",
+    "html-entities": "^2.4.0",
     "jimp-compact": "^0.16.1-2",
     "hashcode": "^1.0.3",
-    "sharp": "^0.32.3"
+    "sharp": "^0.33.0"
   },
   "repository": {
     "type": "git",
