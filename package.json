@@ -21,7 +21,7 @@
     "html-entities": "^2.4.0",
     "jimp-compact": "^0.16.1-2",
     "hashcode": "^1.0.3",
-    "sharp": "^0.33.0"
+    "sharp": "^0.32.6"
   },
   "repository": {
     "type": "git",
