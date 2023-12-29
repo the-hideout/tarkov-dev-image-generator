@@ -482,9 +482,26 @@ const getImageName = (item, imageSize) => {
     return `${item.id}-${imageSizes[imageSize].append}.${imageSizes[imageSize].format}`;
 };
 
+const imageTypeFunctions = {
+    icon: createIcon,
+    'base-image': createBaseImage,
+    'grid-image': createGridImage,
+    'image': createInspectImage,
+    '512': create512Image,
+    '8x': create8xImage,
+};
+
+const createImage = async (imageType, image, item) => {
+    if (!imageTypeFunctions[imageType]) {
+        return Promise.reject(new Error(`${imageType} is not a valid image type`));
+    }
+    return imageTypeFunctions[imageType](image, item);
+};
+
 module.exports = {
     colors: colors,
     imageSizes: imageSizes,
+    createImage: createImage,
     createIcon: createIcon,
     createGridImage: createGridImage,
     createBaseImage: createBaseImage,
