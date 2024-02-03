@@ -584,7 +584,7 @@ module.exports = {
                     const checkCache = (ci) => {
                         if (ci[hash]) {
                             if (signal) {
-                                signal.off('abort', reject);
+                                signal.removeEventListener('abort', reject);
                             }
                             cacheListener.off('refresh', checkCache);
                             return resolve(ci[hash]);
@@ -592,7 +592,7 @@ module.exports = {
                     };
                     cacheListener.on('refresh', checkCache);
                     if (signal) {
-                        signal.on('abort', reject);
+                        signal.addEventListener('abort', reject);
                     }
                 } catch (error) {
                     reject(error);
