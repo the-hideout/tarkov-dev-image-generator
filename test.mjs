@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
 
 dotenv.config();
 
-const { initializeImageGenerator, generateImages, startWatchingCache } = require('./generate');
+import { initializeImageGenerator, generateImages, startWatchingCache } from './generate.mjs';
 
 const testItems = {
     'ak-12 mag': {

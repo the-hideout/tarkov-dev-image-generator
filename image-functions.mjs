@@ -1,10 +1,10 @@
-const path = require('path');
+import path from 'path';
 
-const Jimp = require('jimp-compact');
-const sharp = require('sharp');
-const htmlEntities = require('html-entities');
+import Jimp from 'jimp-compact';
+import sharp from 'sharp';
+import htmlEntities from 'html-entities';
 
-process.env.FONTCONFIG_PATH = path.join(__dirname, 'fonts');
+process.env.FONTCONFIG_PATH = path.join(import.meta.dirname, 'fonts');
 
 const colors = {
     black: {r: 0, g: 0, b: 0, alpha: 77/255},
@@ -110,7 +110,7 @@ const getChecks = async (width, height, itemBackgroundColor) => {
     }}).png();
     canvas = await canvas.composite([
         {
-            input: await sharp(path.join(__dirname, 'grid_cell.png')).toBuffer(),
+            input: await sharp(path.join(import.meta.dirname, 'grid_cell.png')).toBuffer(),
             tile: true,
             gravity: 'southwest',
         },
@@ -217,15 +217,15 @@ const outputFormat = (image, imageType, item) => {
         webp: {lossless: true},
     };
     const format = size.format;
-    const arguments = size.formatOptions || defaultFormatOptions[format];
+    const args = size.formatOptions || defaultFormatOptions[format];
     if (format === 'jpg') {
-        return image.jpeg(arguments);
+        return image.jpeg(args);
     }
     if (format === 'png') {
-        return image.png(arguments);
+        return image.png(args);
     }
     if (format === 'webp') {
-        return image.webp(arguments);
+        return image.webp(args);
     }
     return Promise.reject(new Error(`Unrecognized image format: ${format}`));
 };
@@ -392,7 +392,7 @@ const createInspectImage = async(sourceImage, item) => {
         sourceImage.resize(512, 350, {fit: 'inside'});
     }
 
-    const inspectImage = sharp(path.join(__dirname, 'background.png'));
+    const inspectImage = sharp(path.join(import.meta.dirname, 'background.png'));
 
     inspectImage.composite([{input: await sourceImage.toBuffer()}]);
 
@@ -498,7 +498,7 @@ const createImage = async (imageType, image, item) => {
     return imageTypeFunctions[imageType](image, item);
 };
 
-module.exports = {
+const imageFunctions = {
     colors: colors,
     imageSizes: imageSizes,
     createImage: createImage,
@@ -514,3 +514,5 @@ module.exports = {
     canCreate8xImage: canCreate8xImage,
     getImageName: getImageName,
 };
+
+export default imageFunctions;

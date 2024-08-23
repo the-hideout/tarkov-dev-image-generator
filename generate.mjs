@@ -1,16 +1,15 @@
-#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import EventEmitter from 'node:events';
 
-const fs = require('fs');
-const path = require('path');
-const process = require('process');
-const EventEmitter = require('events');
-const got = require('got');
-const sharp = require('sharp');
+import got from 'got';
+import sharp from 'sharp';
 
-const uploadImages = require('./upload-images');
-const hashCalc = require('./hash-calculator');
-const getJson = require('./get-json');
-const imageFunctions = require('./image-functions');
+import uploadImages from './upload-images.mjs';
+import hashCalc from './hash-calculator.mjs';
+import getJson from './get-json.mjs';
+import imageFunctions from './image-functions.mjs';
 
 let bsgData = false;
 let presets = false;
@@ -570,7 +569,7 @@ const startWatcher = () => {
     }
 };
 
-module.exports = {
+const tarkovImageGenerator = {
     initializeImageGenerator: initialize,
     generateImages: generate,
     cacheListener: cacheListener,
@@ -613,7 +612,7 @@ module.exports = {
         }
     },
     getImagesFromSource: getIcon,
-    imageFunctions: imageFunctions,
+    imageFunctions,
     getIconCachePath: async (options) => {
         if (typeof options === 'string') {
             options = {targetItemId: options};
@@ -628,3 +627,7 @@ module.exports = {
         return path.join(options.filePath || iconCacheFolder, filename);
     }
 };
+
+export const image = imageFunctions;
+
+export default tarkovImageGenerator;

@@ -1,12 +1,13 @@
-const path = require('path');
-const dotenv = require('dotenv');
-const sharp = require('sharp');
-const got = require('got');
+import path from 'node:path';
+
+import dotenv from 'dotenv';
+import sharp from 'sharp';
+import got from 'got';
 
 dotenv.config();
 
-const imageFunctions = require('./image-functions');
-const api = require('./scanner-api');
+import imageFunctions from './image-functions.mjs';
+import api from './scanner-api.mjs';
 
 const cloudflarePurgeLimit = 1000;
 

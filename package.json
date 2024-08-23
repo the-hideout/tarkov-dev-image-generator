@@ -1,24 +1,24 @@
 {
   "name": "tarkov-dev-image-generator",
-  "version": "2.2.2",
+  "version": "3.0.0",
   "description": "",
-  "main": "generate.js",
+  "main": "generate.mjs",
   "bin": {
-    "tarkov-dev-image-generator": "index.js"
+    "tarkov-dev-image-generator": "index.mjs"
   },
   "scripts": {
-    "start": "node index.js",
-    "test": "node test.js"
+    "start": "node index.mjs",
+    "test": "node test.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@jimp/plugin-shadow": "^0.22.10",
-    "dotenv": "^16.3.1",
+    "@jimp/plugin-shadow": "^0.22.12",
+    "dotenv": "^16.4.5",
     "form-data": "^4.0.0",
-    "got": "^11.8.2",
-    "html-entities": "^2.4.0",
+    "got": "^14.3.0",
+    "html-entities": "^2.5.2",
     "jimp-compact": "^0.16.1-2",
     "hashcode": "^1.0.3",
     "sharp": "^0.32.6"

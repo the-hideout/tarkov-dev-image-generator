@@ -1,10 +1,10 @@
-const fs = require('fs');
+import fs from 'node:fs';
 
-const got = require('got');
+import got from 'got';
 
-const api = require('./scanner-api');
+import api from './scanner-api.mjs';
 
-module.exports = {
+const getJson = {
     items: async () => {
         let items = false;
         try {
@@ -83,3 +83,5 @@ module.exports = {
         return presets;
     }
 }
+
+export default getJson;

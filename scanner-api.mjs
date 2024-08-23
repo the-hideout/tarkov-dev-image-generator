@@ -1,8 +1,8 @@
-const fs = require('fs');
-const { setTimeout } = require('timers/promises');
+import fs from 'node:fs';
+import { setTimeout } from 'node:timers/promises';
 
-const got = require('got');
-const FormData = require('form-data');
+import got from 'got';
+import FormData from 'form-data';
 
 const API_URL = 'https://manager.tarkov.dev/api/scanner';
 //const API_URL = 'http://localhost:4000/api/scanner';
@@ -60,7 +60,7 @@ const apiRequest = async (endpoint, method, options, retries) => {
     }
 };
 
-module.exports = {
+const scannerApi = {
     ping: async () => {
         try {
             const result = await apiRequest('ping', 'GET');
@@ -121,3 +121,5 @@ module.exports = {
         });
     }
 };
+
+export default scannerApi;

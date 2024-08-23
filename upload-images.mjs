@@ -1,11 +1,11 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-const dotenv = require("dotenv")
+import dotenv from 'dotenv'
+
+import api from './scanner-api.mjs';
 
 dotenv.config();
-
-const api = require('./scanner-api');
 
 const maxSimultaneousUploads = 1;
 

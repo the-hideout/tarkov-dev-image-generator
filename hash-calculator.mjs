@@ -225,7 +225,7 @@ const getMaxVisibleAmmo = (itemId, cartridgeCount) => {
 
     return visibleAmmoRanges[visibleAmmoRanges.length - 1][1]
 }
-module.exports = {
+const hashCalculator = {
     getItemHash: getItemHash,
     init: (bsgItems, bsgPresets, ttpresets) => {
         items = bsgItems;
@@ -233,3 +233,5 @@ module.exports = {
         ttPresets = ttpresets;
     }
 };
+
+export default hashCalculator;
