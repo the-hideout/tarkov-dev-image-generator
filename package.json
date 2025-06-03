@@ -1,6 +1,6 @@
 {
   "name": "tarkov-dev-image-generator",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "description": "",
   "main": "generate.js",
   "bin": {
@@ -21,7 +21,7 @@
     "html-entities": "^2.6.0",
     "jimp-compact": "^0.16.1-2",
     "hashcode": "^1.0.3",
-    "sharp": "^0.33.5"
+    "sharp": ">=0.34.2"
   },
   "repository": {
     "type": "git",
