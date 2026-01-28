@@ -1,7 +1,6 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const sharp = require('sharp');
-const got = require('got');
 
 dotenv.config();
 
@@ -19,7 +18,8 @@ const cloudflarePurgeLimit = 1000;
     for (const imageType in imageFunctions.imageSizes) {
         imageFields.push(imageFunctions.imageSizes[imageType].api);
     }
-    const response = await got.post('https://api.tarkov.dev/graphql', {
+    const response = await fetch('https://api.tarkov.dev/graphql', {
+        method: 'POST',
         body: JSON.stringify({query: `{
             items {
                 id
@@ -64,9 +64,7 @@ const cloudflarePurgeLimit = 1000;
                 height
             }
         }`}),
-        responseType: 'json',
-        resolveBodyOnly: true
-    });
+    }).then(response => response.json());
 
     let items = [];
     items.push(...response.data.items);

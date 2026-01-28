@@ -217,15 +217,15 @@ const outputFormat = (image, imageType, item) => {
         webp: {lossless: true},
     };
     const format = size.format;
-    const arguments = size.formatOptions || defaultFormatOptions[format];
+    const options = size.formatOptions || defaultFormatOptions[format];
     if (format === 'jpg') {
-        return image.jpeg(arguments);
+        return image.jpeg(options);
     }
     if (format === 'png') {
-        return image.png(arguments);
+        return image.png(options);
     }
     if (format === 'webp') {
-        return image.webp(arguments);
+        return image.webp(options);
     }
     return Promise.reject(new Error(`Unrecognized image format: ${format}`));
 };

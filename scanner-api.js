@@ -1,7 +1,6 @@
 const fs = require('fs');
 const { setTimeout } = require('timers/promises');
 
-const got = require('got');
 const FormData = require('form-data');
 
 const API_URL = 'https://manager.tarkov.dev/api/scanner';
@@ -16,15 +15,13 @@ const sleep = async (ms) => {
 const apiRequest = async (endpoint, method, options, retries) => {
     if (!retries) retries = 0;
     try {
-        const {body} = await got(API_URL+'/'+endpoint, {
-            json: options,
-            responseType: 'json',
+        const response = await fetch(API_URL+'/'+endpoint, {
+            body: options ? JSON.stringify(options) : undefined,
             headers: {
                 username: process.env.API_USERNAME,
                 password: process.env.API_PASSWORD,
                 scanner: process.env.SCANNER_NAME
             },
-            allowGetBody: true,
             method: method,
             retry: {
                 limit: 10,
@@ -33,30 +30,16 @@ const apiRequest = async (endpoint, method, options, retries) => {
                 }
             }
         });
-        return Promise.resolve(body);
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+        return response.json();
     } catch (error) {
-        let retry = false;
-        const retryCodes = [
-            'ECONNREFUSED',
-            'ENOTFOUND',
-            'ETIMEDOUT',
-            'ECONNRESET'
-        ];
-        if (error.code && retryCodes.includes(error.code) && !settings.aborted()) {
-            if (retries <= 10) {
-                retry = true;
-            }
-        } else if (error.message === 'access denied') {
-            retry = true;
+        if (retries > 10) {
+            return Promise.reject(error);
         }
-        if (retry) {
-            await sleep(500);
-            return apiRequest(endpoint, method, options, retries+1);
-        }
-        if (error.code && error.code === 'ERR_BODY_PARSE_FAILURE') {
-            return Promise.reject(new Error('invalid api response'));
-        }
-        return Promise.reject(error);
+        await sleep(500);
+        return apiRequest(endpoint, method, options, retries+1);
     }
 };
 
@@ -110,14 +93,13 @@ module.exports = {
         form.append(imageType, bufferStream);
         form.append('overwrite', String(overwrite));
 
-        return got.post(API_URL + '/image', {
+        return fetch(API_URL + '/image', {
+            method: 'POST',
             body: form,
             headers: {
                 username: process.env.API_USERNAME,
                 password: process.env.API_PASSWORD,
             },
-            responseType: 'json',
-            resolveBodyOnly: true
-        });
+        }).then(response => response.json());
     }
 };

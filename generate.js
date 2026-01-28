@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const process = require('process');
 const EventEmitter = require('events');
-const got = require('got');
 const sharp = require('sharp');
 
 const uploadImages = require('./upload-images');
@@ -239,7 +238,8 @@ const hashItems = async (options) => {
         if (options.targetItemId) {
             queryArgs = `(ids: ["${options.targetItemId}"])`;
         }
-        const response = await got.post('https://api.tarkov.dev/graphql', {
+        const response = await fetch('https://api.tarkov.dev/graphql', {
+            method: 'POST',
             body: JSON.stringify({query: `{
                 items${queryArgs} {
                   id
@@ -270,9 +270,7 @@ const hashItems = async (options) => {
                 }
               }`
             }),
-            responseType: 'json',
-            resolveBodyOnly: true
-        });
+        }).then(response => response.json());
         let missingGridImage = 0;
         let missingIcon = 0;
         let missingBaseImage = 0;

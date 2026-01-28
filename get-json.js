@@ -1,7 +1,5 @@
 const fs = require('fs');
 
-const got = require('got');
-
 const api = require('./scanner-api');
 
 module.exports = {
@@ -20,7 +18,7 @@ module.exports = {
                 }
                 if (!items) {
                     console.log('Downloading SPT item data');
-                    items = JSON.parse((await got('https://dev.sp-tarkov.com/SPT-AKI/Server/raw/branch/development/project/assets/database/templates/items.json')).body);
+                    items = await fetch('https://dev.sp-tarkov.com/SPT-AKI/Server/raw/branch/development/project/assets/database/templates/items.json').then(response => response.json());
                 }
                 fs.writeFileSync('./items.json', JSON.stringify(items, null, 4));
             } catch (downloadError) {
@@ -47,7 +45,7 @@ module.exports = {
                 } 
                 if (!presets) {
                     console.log('Downloading SPT preset data');
-                    presets = JSON.parse((await got('https://dev.sp-tarkov.com/SPT-AKI/Server/raw/branch/development/project/assets/database/globals.json')).body)['ItemPresets'];
+                    presets = (await fetch('https://dev.sp-tarkov.com/SPT-AKI/Server/raw/branch/development/project/assets/database/globals.json').then(response => response.json()))['ItemPresets'];
                 }
                 fs.writeFileSync('./presets.json', JSON.stringify(presets, null, 4));
             } catch (downloadError) {
