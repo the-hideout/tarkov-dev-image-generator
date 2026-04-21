@@ -345,6 +345,27 @@ const createGridImage = async (sourceImage, item) => {
     return outputFormat(gridImage, 'grid-image');
 };
 
+const canCreateBaseImage = async (image, item) => {
+    const targetSize = getItemGridSize(item);
+    if (!targetSize) {
+        return false;
+    }
+    let metadata;
+    if (typeof image === 'string') {
+        metadata = await (await getSharp(image)).metadata();
+    } else if (typeof image === 'object') {
+        if (image.constructor.name === 'Sharp') {
+            metadata = await image.metadata();
+        } else if (image.constructor.name === 'Jimp') {
+            metadata = image.bitmap;
+        }
+    }
+    if (metadata.width === targetSize.width && metadata.height === targetSize.height) {
+        return true;
+    }
+    return false;
+};
+
 const createBaseImage = async (image, item) => {
     image = await getSharp(image);
     const metadata = await image.metadata();
@@ -508,9 +529,11 @@ module.exports = {
     createInspectImage: createInspectImage,
     create512Image: create512Image,
     create8xImage: create8xImage,
+    canCreateBaseImage: canCreateBaseImage,
     canCreate512Image: canCreate512Image,
     canCreateInspectImage: canCreateInspectImage,
     get8xSize: get8xSize,
     canCreate8xImage: canCreate8xImage,
     getImageName: getImageName,
+    getItemGridSize: getItemGridSize,
 };
