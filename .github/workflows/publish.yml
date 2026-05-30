@@ -8,12 +8,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@50fbc622fc4ef5163becd7fab6573eac35f8462e # pin@v1
+      - uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # pin@v1
         with:
           node-version: 14
       - run: npm install
       # - run: npm test
-      - uses: JS-DevTools/npm-publish@v1
+      - uses: JS-DevTools/npm-publish@0f451a94170d1699fd50710966d48fb26194d939 # pin@v1
         with:
           token: ${{ secrets.NPM_TOKEN }}
