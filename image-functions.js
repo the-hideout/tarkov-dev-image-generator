@@ -1,8 +1,8 @@
 const path = require('path');
 
-const Jimp = require('jimp-compact');
 const sharp = require('sharp');
 const htmlEntities = require('html-entities');
+const { default: addDropShadow } = require('./add-drop-shadow.mjs');
 
 process.env.FONTCONFIG_PATH = path.join(__dirname, 'fonts');
 
@@ -86,9 +86,7 @@ const getSharp = async (input, clone = true) => {
 }
 
 const getShadow = async (image) => {
-    image = (await Jimp.read(await image.png().toBuffer()));
-    image.shadow({opacity: 0.8, size: 1, blur: 2, x: 0, y: 0});
-    return sharp(await image.getBufferAsync(Jimp.AUTO));
+    return addDropShadow(image, {opacity: 0.8, offsetX: 1, offsetX: 1});
 };
 
 const getChecks = async (width, height, itemBackgroundColor) => {

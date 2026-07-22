@@ -1,10 +1,8 @@
 const fs = require('fs');
 const { setTimeout } = require('timers/promises');
 
-const FormData = require('form-data');
-
-const API_URL = 'https://manager.tarkov.dev/api/scanner';
-//const API_URL = 'http://localhost:4000/api/scanner';
+//const API_URL = 'https://manager.tarkov.dev/api/scanner';
+const API_URL = 'http://localhost:4000/api/scanner';
 
 const sleep = async (ms) => {
     return setTimeout(ms, true).catch(err => {
@@ -79,18 +77,19 @@ module.exports = {
             return Promise.reject(error);
         }
     },
-    submitImage: async (itemId, imageType, filePath, overwrite = false) => {
-        let bufferStream = false;
-        filePath = await filePath;
-        if (typeof filePath === 'string') {
-            bufferStream = fs.createReadStream(filePath);
+    submitImage: async (itemId, image, overwrite = false) => {
+        let imageBlob;
+        if (!!image && (typeof image === 'object' || typeof image === 'function') && typeof image.then === 'function') {
+            image = await image;
+        }
+        if (typeof image === 'string') {
+            imageBlob = await fs.openAsBlob(image);
         } else {
-            bufferStream = filePath;
+            imageBlob = new Blob([await image.toBuffer()], { type: 'image/png' });
         }
         const form = new FormData();
         form.append('id', itemId);
-        form.append('type', imageType);
-        form.append(imageType, bufferStream);
+        form.append(itemId, imageBlob, `${itemId}.png`);
         form.append('overwrite', String(overwrite));
 
         return fetch(API_URL + '/image', {

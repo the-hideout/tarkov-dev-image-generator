@@ -6,7 +6,6 @@ const process = require('process');
 const EventEmitter = require('events');
 const sharp = require('sharp');
 
-const uploadImages = require('./upload-images');
 const hashCalc = require('./hash-calculator');
 const getJson = require('./get-json');
 const imageFunctions = require('./image-functions');
@@ -515,9 +514,6 @@ const generate = async (options, forceImageIndex) => {
         }
     }
 
-    if (options.upload) {
-        await uploadImages(options);
-    }
     return options.response;
 };
 
