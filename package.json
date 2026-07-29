@@ -15,7 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "html-entities": "^2.6.0",
-    "sharp": ">=0.34.5"
+    "sharp": ">=0.35.3"
   },
   "devDependencies": {
     "dotenv": "^16.4.7",
