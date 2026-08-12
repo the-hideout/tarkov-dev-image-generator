@@ -1,8 +1,7 @@
 const fs = require('fs');
 const { setTimeout } = require('timers/promises');
 
-//const API_URL = 'https://manager.tarkov.dev/api/scanner';
-const API_URL = 'http://localhost:4000/api/scanner';
+const API_URL = process.env.TDM_URL ?? 'https://manager.tarkov.dev/api/scanner';
 
 const sleep = async (ms) => {
     return setTimeout(ms, true).catch(err => {

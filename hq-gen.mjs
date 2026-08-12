@@ -54,9 +54,6 @@ for (let i = 0; i < imageFiles.length; i++) {
     console.log(`${i+1}/${imageFiles.length} ${item.name}`);
     const sourceImage = sharp(path.join(process.env.HQ_IMAGE_DIR, fileName));
 
-    const gridImage = await imageFunctions.createGridImage(sourceImage, item);
-    await gridImage.toFile(`./generated-images/${id}.png`);
-    continue;
     let success = false;
     while (!success) {
         if (purgeCount + 4 >= cloudflarePurgeLimit) {
@@ -68,7 +65,7 @@ for (let i = 0; i < imageFiles.length; i++) {
             });
         }
         try {
-            const result = await api.submitImage(item.id, sourceImage, true).then(response => {
+            const result = await api.submitImage(id, sourceImage, true).then(response => {
                 if (response.data[0]?.purged) {
                     purgeCount++;
                 }
