@@ -1,6 +1,6 @@
 {
   "name": "tarkov-dev-image-generator",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "",
   "main": "generate.js",
   "bin": {
@@ -15,7 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "html-entities": "^2.6.0",
-    "sharp": ">=0.35.3"
+    "sharp": ">=0.35.5"
   },
   "devDependencies": {
     "dotenv": "^16.4.7",

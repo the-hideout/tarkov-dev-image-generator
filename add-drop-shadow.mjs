@@ -52,6 +52,9 @@ async function addDropShadow(src, options = {}) {
     color = '#000000',
   } = options;
 
+  // metadata() reports the original input size, ignoring pending operations
+  // like resize(), so render the pipeline first to get the real dimensions.
+  src = sharp(await src.png().toBuffer());
   const { width, height } = await src.metadata();
   const { r, g, b } = hexToRgb(color);
 

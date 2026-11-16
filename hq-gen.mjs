@@ -71,9 +71,10 @@ for (let i = 0; i < imageFiles.length; i++) {
                 }
                 return response;
             });
-            if (result.status === 'rejected') {
+            console.log(id, result);
+            if (result.errors?.length) {
                 console.log(result);
-                throw result.reason;
+                throw new Error(result.errors[0]);
             }
             success = true;
         } catch (error) {
