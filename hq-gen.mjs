@@ -1,9 +1,7 @@
+import 'dotenv/config';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import dotenv  from'dotenv';
 import sharp from 'sharp';
-
-dotenv.config();
 
 import * as imageFunctions from'./image-functions.js';
 import apiRequest from './api-request.mjs';
@@ -71,7 +69,6 @@ for (let i = 0; i < imageFiles.length; i++) {
                 }
                 return response;
             });
-            console.log(id, result);
             if (result.errors?.length) {
                 console.log(result);
                 throw new Error(result.errors[0]);
